@@ -142,6 +142,8 @@ Try it in the browser: [Horizon-Labs/pii-redactor demo](https://huggingface.co/s
 Part of [Agent I/O Guards](https://huggingface.co/collections/Horizon-Labs/agent-i-o-guards-6ab403c49494bc2b71ca7669),
 alongside [Prompt Injection Guard](https://huggingface.co/Horizon-Labs/prompt-injection-guard-base).
 
+Source code (data, training, evaluation): [github.com/horizon-ai-labs/agent-io-guards](https://github.com/horizon-ai-labs/agent-io-guards).
+
 ## Quick start
 
 ```python

@@ -7,7 +7,7 @@ All models are Apache-2.0, multilingual (mmBERT backbones) and ship ONNX / trans
 |---|---|---|
 | Prompt Injection Guard (small 141M, base 308M) | direct + indirect prompt-injection / jailbreak detection | [small](https://huggingface.co/Horizon-Labs/prompt-injection-guard-small) · [base](https://huggingface.co/Horizon-Labs/prompt-injection-guard-base) |
 | PII Redactor (small 141M, base 308M) | PII and secrets detection (29 entity types, 30+ languages) | [small](https://huggingface.co/Horizon-Labs/pii-redactor-small) · [base](https://huggingface.co/Horizon-Labs/pii-redactor-base) |
-| Groundedness (work in progress) | is a response supported by its source documents? | not released |
+| Hallucination Guard (small 141M, base 308M) | groundedness: is a response supported by its source? (multilingual) | [small](https://huggingface.co/Horizon-Labs/hallucination-guard-small) · [base](https://huggingface.co/Horizon-Labs/hallucination-guard-base) |
 
 Related: [prompt-injection eval suite](https://huggingface.co/datasets/Horizon-Labs/prompt-injection-eval-suite) ·
 [detector leaderboard](https://huggingface.co/spaces/Horizon-Labs/prompt-injection-leaderboard) ·

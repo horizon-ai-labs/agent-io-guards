@@ -190,6 +190,8 @@ RAG chunks, and tool/API outputs (indirect).
 Try it in the browser: [Horizon-Labs/prompt-injection-guard demo](https://huggingface.co/spaces/Horizon-Labs/prompt-injection-guard).
 Other size: [{'base' if args.size == 'small' else 'small'}](https://huggingface.co/Horizon-Labs/prompt-injection-guard-{'base' if args.size == 'small' else 'small'}).
 
+Source code (data, training, evaluation): [github.com/horizon-ai-labs/agent-io-guards](https://github.com/horizon-ai-labs/agent-io-guards).
+
 ## Quick start
 
 ```python

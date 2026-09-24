@@ -16,6 +16,7 @@ ap.add_argument("--out", required=True)
 ap.add_argument("--ours_data", default="")
 ap.add_argument("--max_n", type=int, default=2000)
 ap.add_argument("--max_len", type=int, default=2048)
+ap.add_argument("--only_extra", action="store_true", help="skip built-in benchmarks")
 ap.add_argument("--extra_evals", default="", help="comma list of dirs with *.parquet (text, text_pair, label)")
 args = ap.parse_args()
 rng = random.Random(0)
@@ -23,6 +24,8 @@ rng = random.Random(0)
 
 def bench():
     B = {}
+    if args.only_extra:
+        return extra(B)
     # RAGTruth test: response-level (unsupported if any hallucination span)
     rows = []
     for r in load_dataset("wandb/RAGTruth-processed", split="test"):
@@ -47,6 +50,10 @@ def bench():
         for p in sorted(glob.glob(f"{args.ours_data}/eval/*.parquet")):
             df = pd.read_parquet(p).sample(frac=1.0, random_state=0).head(args.max_n)
             B["ours_" + os.path.basename(p)[:-8]] = list(zip(df.text, df.text_pair, df.label))
+    return extra(B)
+
+
+def extra(B):
     for d in [x for x in args.extra_evals.split(",") if x]:
         import pandas as pd
         for p in sorted(glob.glob(f"{d}/*.parquet")):
