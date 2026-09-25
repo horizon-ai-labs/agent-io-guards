@@ -4,8 +4,9 @@ import json, os, sys
 from huggingface_hub import HfApi, CommitOperationAdd
 size, d, ev, bl, msg = sys.argv[1:6]
 repo = f"Horizon-Labs/prompt-injection-guard-{size}"
+HfApi().create_repo(repo, exist_ok=True)
 ops = [CommitOperationAdd(f, f"{d}/{f}") for f in ["config.json", "model.safetensors", "tokenizer.json", "tokenizer_config.json", "special_tokens_map.json"]]
-ops += [CommitOperationAdd(f"onnx/{f}", f"{d}/onnx/{f}") for f in ["model.onnx", "model_quantized.onnx"]]
+ops += [CommitOperationAdd(f"onnx/{f}", f"{d}/onnx/{f}") for f in sorted(os.listdir(f"{d}/onnx"))]   # incl. model.onnx_data for >2 GB models
 ops.append(CommitOperationAdd("onnx/quantization_check.json", f"{d}/onnx_sweep.json"))
 ops.append(CommitOperationAdd("training/val_metrics.json", f"{d}/val_metrics.json"))
 t = json.load(open(f"{d}/train_log.json")); t["args"]["data"] = "see code/"; t["args"]["out"] = "model"
@@ -13,7 +14,7 @@ ops.append(CommitOperationAdd("training/train_log.json", json.dumps(t, indent=1)
 ops.append(CommitOperationAdd("README.md", f"release/{size}/README.md"))
 ops.append(CommitOperationAdd("eval/eval_results.json", ev)); ops.append(CommitOperationAdd("eval/baselines_eval_results.json", bl))
 for p in ["data/build_v0.py", "data/build_v1.py", "data/build_v2.py", "data/langs.py", "gen/gen_v1.py", "gen/gen_v2.py", "train/train.py",
-          "train/evaluate.py", "train/normalizer.py", "train/export_onnx.py", "train/quant_sweep.py", "release/build_release_dir.py"]:
+          "train/evaluate.py", "train/normalizer.py", "train/export_onnx.py", "train/quant_sweep.py", "release/build_release_dir.py"] + (["zeroshot/export_onnx_large.py"] if size == "large" else []):
     ops.append(CommitOperationAdd(f"code/{p}", p))
 for o in ops:
     if isinstance(o.path_or_fileobj, bytes):
