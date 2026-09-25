@@ -128,6 +128,7 @@ datasets:
 - nyu-mll/multi_nli
 - stanfordnlp/snli
 - alisawuffles/WANLI
+- Horizon-Labs/multilingual-zeroshot-synthetic
 ---
 
 # Multilingual Zero-Shot Classifier ({size}, {params})
@@ -231,6 +232,8 @@ first scores 0.99, which suggests it saw the test sentences). Our models never s
     sentiment, audience, purpose and news section; ~130k short texts written for fixed label sets (emotion, sentiment,
     Q&A question topic, news section, customer-message topic, urgency, formality, spam) without using the label words;
     ~25k reviews in 8 domains mentioning aspects (e.g. "internet", "food") without naming them.
+- The Qwen-generated classification data (short texts, taxonomies, aspects, labelled passages) is published as
+  [Horizon-Labs/multilingual-zeroshot-synthetic](https://huggingface.co/datasets/Horizon-Labs/multilingual-zeroshot-synthetic).
 - Not used: XNLI, ANLI, FEVER-NLI, any benchmark above.
 """
 open(out, "w").write(card)
