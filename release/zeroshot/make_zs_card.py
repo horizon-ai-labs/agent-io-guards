@@ -2,15 +2,16 @@
 import json, sys
 
 size, out = sys.argv[1], sys.argv[2]
-SIZES = {"small": ("jhu-clsp/mmBERT-small", "141M"), "base": ("jhu-clsp/mmBERT-base", "308M")}
+import os
+SIZES = {"small": ("jhu-clsp/mmBERT-small", "141M"), "base": ("jhu-clsp/mmBERT-base", "308M"), "large": ("BAAI/bge-m3", "568M")}
 base_model, params = SIZES[size]
-other = "base" if size == "small" else "small"
+others = [o for o in SIZES if o != size and os.path.exists(f"release/evals/zs_{o}.json")]
 REPO = f"Horizon-Labs/multilingual-zeroshot-{size}"
 me = json.load(open(f"release/evals/zs_{size}.json"))
-ot = json.load(open(f"release/evals/zs_{other}.json"))
+ots = {o: json.load(open(f"release/evals/zs_{o}.json")) for o in others}
 bl = json.load(open("release/evals/zs_baselines.json"))
-v10 = json.load(open(f"release/evals/zs_{size}_v1.0.json"))
-cols = {f"**this model** ({params})": me, f"{other} ({SIZES[other][1]})": ot,
+v10 = json.load(open(f"release/evals/zs_{size}_v1.0.json")) if os.path.exists(f"release/evals/zs_{size}_v1.0.json") else None
+cols = {f"**this model** ({params})": me, **{f"{o} ({SIZES[o][1]})": ots[o] for o in others},
         "bge-m3-zeroshot-v2.0-c (568M)": bl["MoritzLaurer/bge-m3-zeroshot-v2.0-c"],
         "mDeBERTa-v3-base-xnli (278M)": bl["MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7"],
         "xlm-roberta-large-xnli (560M)": bl["joeddav/xlm-roberta-large-xnli"],
@@ -43,12 +44,24 @@ EN = [("agnews", "AG News (4) §"), ("yahoo", "Yahoo Answers (10) §"), ("bankin
       ("emotion", "Emotion (6) §"), ("sst2", "SST-2 (2) §")]
 en_rows = [(n, (lambda k: lambda c: acc(c, k))(k)) for k, n in EN] + \
           [("MASSIVE, English only", lambda c: acc(c, "massive", "en")), ("SIB-200, English only", lambda c: acc(c, "sib200", "en"))]
-ver_cols = {"v1.0": v10, "**v1.1 (this version)**": me}
+ver_cols = {"v1.0": v10, "**v1.1 (this version)**": me} if v10 else None
 ver_rows = [("MASSIVE (unseen label set)", lambda c: acc(c, "massive")), ("Banking77 (unseen label set)", lambda c: acc(c, "banking77")),
             ("XNLI (balanced acc.)", lambda c: c["xnli"]["all"]["bacc"]), ("SIB-200 §", lambda c: acc(c, "sib200")),
             ("AG News §", lambda c: acc(c, "agnews")), ("Yahoo Answers §", lambda c: acc(c, "yahoo")),
             ("Emotion §", lambda c: acc(c, "emotion")), ("SST-2 §", lambda c: acc(c, "sst2"))]
 xnli_rows = [("XNLI test, 12 languages (balanced acc.) †", lambda c: c["xnli"]["all"]["bacc"])]
+
+VERSION_SECTION = ("""### v1.0 → v1.1
+
+v1.1 adds data with broad, reusable label taxonomies, so it is better on common categories (topics, emotions,
+sentiment, aspects) — the § rows, where the label names are familiar to it. On label sets it has not seen it stays
+within about ±0.015 of v1.0 (slightly lower on some). To pin the previous model, load it with `revision="v1.0"`.
+
+""" + table(ver_cols, ver_rows) + "\n\n") if ver_cols else ""
+ARCH_TAGS = "- xlm-roberta\n- bge-m3" if size == "large" else "- modernbert\n- mmbert"
+SIZE_BULLET = ("- **Most accurate of the family**: 568M parameters (bge-m3 / XLM-RoBERTa-large backbone, MIT), 8k context. Use a GPU "
+               "for throughput; ONNX included for CPU (fp32, and int8 embeddings at 1.5 GB with 99-100% top-label agreement)." if size == "large" else
+               f"- **Small and fast**: {params} parameters, ModernBERT architecture (mmBERT), ONNX included for CPU and the browser.")
 
 card = f"""---
 license: apache-2.0
@@ -89,10 +102,19 @@ tags:
 - natural-language-inference
 - text-classification
 - multilingual
-- modernbert
-- mmbert
+{ARCH_TAGS}
 - onnx
 - transformers.js
+widget:
+- text: "Mi pedido llegó roto y quiero que me devuelvan el dinero."
+  candidate_labels: "refund request, shipping question, product praise, account problem"
+  multi_class: false
+- text: "Die Bundesregierung hat ein neues Klimaschutzpaket beschlossen, das den Ausbau der Windenergie beschleunigen soll."
+  candidate_labels: "politics, sports, business, science and technology, entertainment"
+  multi_class: false
+- text: "画面はとてもきれいだけど、バッテリーが半日しか持たないのが残念です。"
+  candidate_labels: "screen, battery, price, camera"
+  multi_class: true
 datasets:
 - nyu-mll/multi_nli
 - stanfordnlp/snli
@@ -102,13 +124,13 @@ datasets:
 # Multilingual Zero-Shot Classifier ({size}, {params})
 
 Classify text in 30+ languages into **any labels you choose**, with no training. Use it with the transformers
-`zero-shot-classification` pipeline, like `facebook/bart-large-mnli`, but multilingual, smaller, and with an 8k-token
+`zero-shot-classification` pipeline, like `facebook/bart-large-mnli`, but multilingual{'' if size == 'large' else ', smaller,'} and with an 8k-token
 context window (fine-tuned at up to 1,024 tokens).
 
 - **Multilingual**: the text can be in any of the languages below; labels and the hypothesis template stay in English.
 - **Commercially clean**: Apache-2.0, trained only on data that allows commercial use (no XNLI, ANLI or other
   non-commercial sets). See Training.
-- **Small and fast**: {params} parameters, ModernBERT architecture (mmBERT), ONNX included for CPU and the browser.
+{SIZE_BULLET}
 - **Honest numbers**: all models below were run by us with the same script and templates.
 
 Try it in the browser: [Horizon-Labs/multilingual-zeroshot demo](https://huggingface.co/spaces/Horizon-Labs/multilingual-zeroshot).
@@ -161,15 +183,7 @@ Per language, mean of MASSIVE and SIB-200:
 
 {table(en_cols, en_rows)}
 
-### v1.0 → v1.1
-
-v1.1 adds data with broad, reusable label taxonomies, so it is better on common categories (topics, emotions,
-sentiment, aspects) — the § rows, where the label names are familiar to it. On label sets it has not seen it stays
-within about ±0.015 of v1.0 (slightly lower on some). To pin the previous model, load it with `revision="v1.0"`.
-
-{table(ver_cols, ver_rows)}
-
-### NLI
+{VERSION_SECTION}### NLI
 
 {table(cols, xnli_rows)}
 
