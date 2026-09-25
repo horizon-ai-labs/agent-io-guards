@@ -71,7 +71,8 @@ try:
         r = dict(max_diff=float(np.abs(p - ref).max()), mean_diff=float(np.abs(p - ref).mean()),
                  agree=float(((p > 0.5) == (ref > 0.5)).mean()), ms=t * 1000, mb=os.path.getsize(out) / 1e6)
         res[bits_name] = r; print(bits_name, r, flush=True)
-        if r["agree"] >= 0.995 and r["mb"] < res[best]["mb"]:
+        # GATHER_ONLY=1: never pick the q4 variant (rejected for hallucination-guard-small: mean |p diff| .033)
+        if r["agree"] >= 0.995 and r["mb"] < res[best]["mb"] and not os.environ.get("GATHER_ONLY"):
             best = bits_name
 except Exception as e:
     print("nbits failed", e, flush=True)

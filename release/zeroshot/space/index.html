@@ -1,0 +1,71 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Multilingual Zero-Shot Classifier</title>
+<style>
+:root{--bg:#fafafa;--fg:#1a1a1a;--muted:#666;--card:#fff;--border:#ddd;--bar:#4c6ef5}
+@media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--muted:#aaa;--card:#1b1b1b;--border:#333;--bar:#748ffc}}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);max-width:900px;margin:2rem auto;padding:0 1rem;line-height:1.5}
+textarea,input[type=text]{width:100%;font:14px/1.4 system-ui,sans-serif;padding:.6rem;box-sizing:border-box;background:var(--card);color:var(--fg);border:1px solid var(--border);border-radius:8px}
+button{background:var(--bar);color:#fff;border:0;border-radius:6px;padding:.5rem 1rem;font-size:15px;cursor:pointer} button:disabled{opacity:.5}
+.out{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.6rem;min-height:2rem}
+.row{display:flex;align-items:center;gap:.6rem;margin:.25rem 0} .lab{width:30%;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.track{flex:1;background:var(--border);border-radius:4px;height:14px} .fill{background:var(--bar);height:14px;border-radius:4px} .val{width:3.5rem;font-variant-numeric:tabular-nums}
+.ex{display:inline-block;margin:.2rem .3rem .2rem 0;padding:.2rem .6rem;border:1px solid var(--border);border-radius:14px;cursor:pointer;font-size:13px;background:var(--card)}
+.muted{color:var(--muted)}
+</style></head><body>
+<h1>🏷️ Multilingual Zero-Shot Classifier</h1>
+<p class="muted">Classify text in 30+ languages into labels you choose, with no training. Runs
+<a href="https://huggingface.co/Horizon-Labs/multilingual-zeroshot-small">multilingual-zeroshot-small</a> (141M, Apache-2.0)
+entirely in your browser. The first run downloads the model once, then it is cached.</p>
+<div><span class="ex" data-i="0">Support ticket (es)</span><span class="ex" data-i="1">News (de)</span><span class="ex" data-i="2">Review (ja)</span><span class="ex" data-i="3">Voice assistant (hi)</span><span class="ex" data-i="4">Multi-label (en)</span></div>
+<p><b>Text</b> (any language)</p><textarea id="txt" rows="4"></textarea>
+<p><b>Labels</b> (comma-separated, English works best)</p><input type="text" id="labels"/>
+<p><b>Hypothesis template</b> <span class="muted">({} is replaced by each label)</span></p><input type="text" id="tpl"/>
+<p><label><input type="checkbox" id="multi"/> Several labels can be true (multi-label)</label></p>
+<p><button id="go" disabled>Loading model…</button> <span class="muted" id="status"></span></p>
+<div class="out" id="out"></div>
+<p class="muted">Single-label scores sum to 1 (like the transformers <code>zero-shot-classification</code> pipeline); multi-label
+scores are independent. Label wording matters: descriptive labels ("asks for a refund") beat terse ones. See the
+<a href="https://huggingface.co/Horizon-Labs/multilingual-zeroshot-base">model card</a> for benchmarks and limitations; the base
+model (308M) is more accurate than this small one.</p>
+<script type="module">
+import { AutoTokenizer, AutoModelForSequenceClassification } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3";
+const M = "Horizon-Labs/multilingual-zeroshot-small";
+const EX = [
+ ["Hola, me cobraron dos veces el mismo pedido y necesito que me devuelvan uno de los pagos lo antes posible.", "refund request, shipping question, technical problem, product praise, account access", "This customer message is about {}.", false],
+ ["Die Bundesregierung hat am Mittwoch ein neues Klimaschutzpaket beschlossen, das den Ausbau der Windenergie beschleunigen soll.", "politics, sports, business, science and technology, entertainment", "This news article is about {}.", false],
+ ["画面はとてもきれいだけど、バッテリーが半日しか持たないのが残念です。", "positive, negative, mixed", "The sentiment of this review is {}.", false],
+ ["कल सुबह सात बजे का अलार्म लगा दो", "set an alarm, play music, check the weather, send a message, order food", "The user wants to {}.", false],
+ ["The hotel room was spotless and the staff were lovely, but the wifi kept dropping and breakfast was overpriced.", "cleanliness, friendly staff, wifi problems, breakfast, high prices, location", "The review mentions {}.", true]];
+const $ = id => document.getElementById(id);
+const setEx = i => { [$("txt").value, $("labels").value, $("tpl").value, $("multi").checked] = EX[i]; };
+setEx(0);
+document.querySelectorAll(".ex").forEach(e => e.onclick = () => { setEx(+e.dataset.i); run(); });
+const esc = s => s.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+let tok, model, ENT = 1, NOT = 0;
+async function run() {
+  if (!model) return; $("go").disabled = true; const t0 = performance.now();
+  const text = $("txt").value, tpl = $("tpl").value.includes("{}") ? $("tpl").value : "This example is {}.";
+  const labels = $("labels").value.split(",").map(s => s.trim()).filter(Boolean);
+  if (!labels.length) { $("go").disabled = false; return; }
+  const enc = await tok(labels.map(() => text), { text_pair: labels.map(l => tpl.replace("{}", l)), padding: true, truncation: true, max_length: 1024 });
+  const { logits } = await model(enc);
+  const d = logits.data, C = logits.dims[1];
+  const ent = labels.map((_, i) => d[i * C + ENT]), not = labels.map((_, i) => d[i * C + NOT]);
+  let sc;
+  if ($("multi").checked) sc = ent.map((e, i) => 1 / (1 + Math.exp(not[i] - e)));
+  else { const m = Math.max(...ent), ex = ent.map(e => Math.exp(e - m)), s = ex.reduce((a, b) => a + b, 0); sc = ex.map(e => e / s); }
+  const order = labels.map((l, i) => [l, sc[i]]).sort((a, b) => b[1] - a[1]);
+  $("out").innerHTML = order.map(([l, s]) => `<div class="row"><div class="lab" title="${esc(l)}">${esc(l)}</div><div class="track"><div class="fill" style="width:${(s * 100).toFixed(1)}%"></div></div><div class="val">${s.toFixed(2)}</div></div>`).join("");
+  $("status").textContent = `${labels.length} labels, ${(performance.now() - t0).toFixed(0)} ms`; $("go").disabled = false;
+}
+$("go").onclick = run;
+(async () => {
+  try {
+    tok = await AutoTokenizer.from_pretrained(M);
+    model = await AutoModelForSequenceClassification.from_pretrained(M, { dtype: "q8",
+      progress_callback: x => { if (x.status === "progress" && x.file.endsWith(".onnx")) $("status").textContent = `Downloading model… ${x.progress.toFixed(0)}%`; } });
+    const l2i = model.config.label2id || {}; for (const [k, v] of Object.entries(l2i)) { if (k.toLowerCase().startsWith("entail")) ENT = v; else NOT = v; }
+    $("go").disabled = false; $("go").textContent = "Classify"; $("status").textContent = "Model ready (running locally)."; run();
+  } catch (e) { $("status").textContent = "Failed to load model: " + e; }
+})();
+</script></body></html>
