@@ -6,6 +6,7 @@ Sources (all commercially usable):
   tr_nli / tr_nli_xen      Qwen translations of MNLI/WANLI pairs; _xen keeps the English hypothesis (the zero-shot case)
   zs_passage / zs_short    Qwen-labelled FineWeb passages and Qwen-written short texts, turned into
                            (text, template.format(label)) pairs with the gold labels as positives
+  zs_tax_passage / zs_tax_short / zs_aspect   (v2, zs2_*.jsonl) the same with generic label taxonomies
 """
 import glob, json, os, random, sys
 import pandas as pd
@@ -14,6 +15,7 @@ from datasets import load_dataset
 OUT, GEN = sys.argv[1], sys.argv[2:]
 # variants (env): SNLI_N (default 100000), SHORT_NEG (negatives per short text, default 3), ZS_REPEAT (default 1)
 SNLI_N, SHORT_NEG, ZS_REPEAT = int(os.environ.get("SNLI_N", 100000)), int(os.environ.get("SHORT_NEG", 3)), int(os.environ.get("ZS_REPEAT", 1))
+TAX_NEG = int(os.environ.get("TAX_NEG", 6))   # negatives per text from a generic taxonomy (v2 data)
 rng = random.Random(0)
 GENERIC = ["This example is {}.", "This text is about {}.", "The topic of this text is {}.", "This is about {}.", "{}",
            "This text is {}.", "This is an example of {}.", "It is about {}.", "The category is {}.", "This is {}."]
@@ -66,16 +68,18 @@ def hyp(label, task, qwen_t):
 
 n0 = len(rows); seen = set()
 for g in GEN:
-    for p in glob.glob(f"{g}/zs_*.jsonl"):
+    for p in glob.glob(f"{g}/zs_*.jsonl") + glob.glob(f"{g}/zs2_*.jsonl"):
         for line in open(p):
             j = json.loads(line)
-            key = j["text"].strip().lower()
+            key = (j["text"].strip().lower(), j.get("task", "") if j["source"] == "tax_passage" else "")
             if key in seen or len(j["text"]) < 8:
                 continue
             seen.add(key)
             gold = set(j["gold"]); neg = [l for l in j["labels"] if l not in gold and l.strip()]
             if j["source"] == "short":
                 neg = rng.sample(neg, min(SHORT_NEG, len(neg)))
+            elif j["source"].startswith("tax_"):
+                neg = rng.sample(neg, min(TAX_NEG, len(neg)))
             src = "zs_" + j["source"]
             for _ in range(ZS_REPEAT):   # repeats get freshly sampled hypothesis templates
                 for l in gold:
