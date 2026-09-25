@@ -9,6 +9,7 @@ REPO = f"Horizon-Labs/multilingual-zeroshot-{size}"
 me = json.load(open(f"release/evals/zs_{size}.json"))
 ot = json.load(open(f"release/evals/zs_{other}.json"))
 bl = json.load(open("release/evals/zs_baselines.json"))
+v10 = json.load(open(f"release/evals/zs_{size}_v1.0.json"))
 cols = {f"**this model** ({params})": me, f"{other} ({SIZES[other][1]})": ot,
         "bge-m3-zeroshot-v2.0-c (568M)": bl["MoritzLaurer/bge-m3-zeroshot-v2.0-c"],
         "mDeBERTa-v3-base-xnli (278M)": bl["MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7"],
@@ -36,12 +37,17 @@ def table(cs, rows):
 
 
 multi_rows = [("MASSIVE intents (60 labels), 16 languages", lambda c: acc(c, "massive")),
-              ("SIB-200 topics (7 labels), 16 languages", lambda c: acc(c, "sib200"))]
+              ("SIB-200 topics (7 labels), 16 languages §", lambda c: acc(c, "sib200"))]
 lang_rows = [(NAMES[l], (lambda l: lambda c: (acc(c, "massive", l) + acc(c, "sib200", l)) / 2)(l)) for l in LANGS]
-EN = [("agnews", "AG News (4)"), ("yahoo", "Yahoo Answers (10)"), ("banking77", "Banking77 (77)"),
-      ("emotion", "Emotion (6)"), ("sst2", "SST-2 (2)")]
+EN = [("agnews", "AG News (4) §"), ("yahoo", "Yahoo Answers (10) §"), ("banking77", "Banking77 (77)"),
+      ("emotion", "Emotion (6) §"), ("sst2", "SST-2 (2) §")]
 en_rows = [(n, (lambda k: lambda c: acc(c, k))(k)) for k, n in EN] + \
           [("MASSIVE, English only", lambda c: acc(c, "massive", "en")), ("SIB-200, English only", lambda c: acc(c, "sib200", "en"))]
+ver_cols = {"v1.0": v10, "**v1.1 (this version)**": me}
+ver_rows = [("MASSIVE (unseen label set)", lambda c: acc(c, "massive")), ("Banking77 (unseen label set)", lambda c: acc(c, "banking77")),
+            ("XNLI (balanced acc.)", lambda c: c["xnli"]["all"]["bacc"]), ("SIB-200 §", lambda c: acc(c, "sib200")),
+            ("AG News §", lambda c: acc(c, "agnews")), ("Yahoo Answers §", lambda c: acc(c, "yahoo")),
+            ("Emotion §", lambda c: acc(c, "emotion")), ("SST-2 §", lambda c: acc(c, "sst2"))]
 xnli_rows = [("XNLI test, 12 languages (balanced acc.) †", lambda c: c["xnli"]["all"]["bacc"])]
 
 card = f"""---
@@ -138,6 +144,11 @@ labels for every language; the same template for every model (e.g. "This text is
 these datasets' training splits, except where marked. ‡ = trained partly on data with non-commercial licenses (their
 `-c` variants are the commercially usable ones). Script: `zeroshot/evaluate_zs.py`.
 
+§ = **label names seen in our synthetic training data**. Since v1.1 our training data includes generic label
+taxonomies (topics, news sections, Q&A question topics, emotions, sentiment) whose label names overlap these benchmarks'
+label sets; for Yahoo Answers and AG News almost exactly. No benchmark texts were used, but on these rows our models are
+not zero-shot with respect to the label names, so compare with care. MASSIVE, Banking77 and XNLI label sets were not used.
+
 ### Multilingual
 
 {table(cols, multi_rows)}
@@ -149,6 +160,14 @@ Per language, mean of MASSIVE and SIB-200:
 ### English
 
 {table(en_cols, en_rows)}
+
+### v1.0 → v1.1
+
+v1.1 adds data with broad, reusable label taxonomies, so it is better on common categories (topics, emotions,
+sentiment, aspects) — the § rows, where the label names are familiar to it. On label sets it has not seen it stays
+within about ±0.015 of v1.0 (slightly lower on some). To pin the previous model, load it with `revision="v1.0"`.
+
+{table(ver_cols, ver_rows)}
 
 ### NLI
 
@@ -164,13 +183,14 @@ first scores 0.99, which suggests it saw the test sentences). Our models never s
   them on your data.
 - bge-m3-zeroshot-v2.0 (568M, trained partly on non-commercial data) scores higher on MASSIVE and SIB-200.
 - Zero-shot accuracy depends a lot on label wording and the template. Use descriptive labels ("request a refund"
-  rather than "refund_req") and try a template that fits your task. The model links surface wording better than
-  abstract categories: for a hotel review saying "the wifi kept dropping and breakfast was overpriced", the small model
-  gives "wifi problems" 0.95 and "breakfast" 0.86, but "internet" only 0.26 and "food" 0.09 (multi-label).
+  rather than "refund_req") and try a template that fits your task. The model links explicit wording better than
+  implied categories. Example (small model, multi-label, a gym review not like our training domains): "The machines are
+  always taken after 5pm and half the treadmills are broken, but the coaches really know their stuff. For 60 euros a
+  month I expected cleaner showers." gives equipment 0.99, trainers 0.97, membership cost 0.82, but hygiene only 0.28
+  and crowding 0.03 (v1.0: trainers 0.56, membership cost 0.58).
 - Broad labels (e.g. "world news", "education") tend to win over specific ones. Emotions close in meaning (joy / love
   / surprise) are often confused.
-- With `multi_label=True`, scores are independent and tend to be high for related but absent labels (e.g. "screen"
-  scoring 0.6 for a phone review about camera and battery). Tune the threshold on a few examples of your own.
+- With `multi_label=True`, scores are independent; tune the threshold on a few examples of your own.
 - Lower-resource languages (e.g. Swahili) score clearly lower than high-resource ones.
 - Much of the training data is synthetic (Qwen3.8-27B) or machine-translated.
 
@@ -184,6 +204,10 @@ first scores 0.99, which suggests it saw the test sentences). Our models never s
   - Synthetic zero-shot tasks by Qwen3.8-27B: FineWeb-Edu / FineWeb-2 passages (ODC-BY) labelled by topic, genre,
     audience, tone and purpose with near-miss wrong labels, and ~90k short texts (requests, reviews, tickets, posts,
     headlines) over 26 task types, 32 domains and 33 languages, each with an invented label set and hypothesis template.
+  - (v1.1) Generic taxonomies by Qwen3.8-27B: 24k new FineWeb / FineWeb-2 passages labelled for topic, text type,
+    sentiment, audience, purpose and news section; ~130k short texts written for fixed label sets (emotion, sentiment,
+    Q&A question topic, news section, customer-message topic, urgency, formality, spam) without using the label words;
+    ~25k reviews in 8 domains mentioning aspects (e.g. "internet", "food") without naming them.
 - Not used: XNLI, ANLI, FEVER-NLI, any benchmark above.
 """
 open(out, "w").write(card)
