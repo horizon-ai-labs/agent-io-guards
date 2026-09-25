@@ -20,7 +20,7 @@ ops.append(CommitOperationAdd("eval/external_benchmarks.json", json.dumps(clean,
 ops.append(CommitOperationAdd("eval/in_distribution.json", indist))
 t = json.load(open(f"{d}/train_log.json")); t["args"]["data"] = "see code/"; t["args"]["out"] = "model"
 ops.append(CommitOperationAdd("training/train_log.json", json.dumps(t, indent=1).encode()))
-for p in ["pii/build_pii_v0.py", "pii/train_tok.py", "pii/evaluate_pii.py", "pii/export_onnx_tok.py", "pii/gen_pii.py", "pii/build_pii_v1.py"]:
+for p in ["pii/build_pii_v0.py", "pii/train_tok.py", "pii/evaluate_pii.py", "pii/export_onnx_tok.py", "pii/gen_pii.py", "pii/build_pii_v1.py", "pii/build_pii_v3.py"]:
     ops.append(CommitOperationAdd(f"code/{p}", p))
 for o in ops:
     if isinstance(o.path_or_fileobj, str) and os.path.getsize(o.path_or_fileobj) < 5e6:
