@@ -31,7 +31,9 @@ SETS = [("redactionbench", "RedactionBench (real-world style forms, letters, syl
         ("privacy_bench", "TonicAI Privacy-Bench (corporate email threads)"),
         ("tab_echr", "TAB: ECHR court judgments (DIRECT identifiers)"),
         ("ru_pii_benchmark", "Russian PII benchmark (redmadrobot)"),
-        ("ours_synthetic_pii", "Secrets, code, configs, chats in 36 languages (our held-out synthetic set) *")]
+        ("ours_synthetic_pii", "Secrets, code, configs, chats in 36 languages (our held-out synthetic set) *"),
+        ("ours_synthetic_payment", "Card numbers, expiry dates, CVVs, IBANs in 12 languages (our held-out templates) **")]
+V11 = args.size == "small"   # v1.1 = v0 data + programmatic payment snippets; the base model stays at v1.0 (see card)
 
 
 def row(metric):
@@ -61,6 +63,28 @@ for k, desc in [("openpii", "OpenPII validation (30 languages)"), ("nemotron", "
         ind_lines.append(f"| {desc} | {r['entity_f1']:.3f} | {r['redact_recall']:.3f} | {r['redact_precision']:.3f} |")
 labels = sorted({l for v in indist.values() for l in v.get("per_label", {})})
 per_label = indist.get("nemotron", {}).get("per_label", {})
+
+VERSION_NOTE = ("""### v1.0 → v1.1
+
+v1.1 (this version) adds 6,000 short, programmatically generated payment and bank snippets to the unchanged v1.0
+training data: Luhn-valid test card numbers in several groupings, expiry dates, CVV/CVC codes with keywords in 12
+languages, and IBAN/BIC codes (none are real accounts). v1.0 missed expiry dates without the word "date" and CVVs after
+words like "security code" or "cryptogramme". On the payment set v1.1 masks {pv11:.2f} of must-redact characters
+(v1.0: 0.88), with the external mean redaction F1 unchanged (0.678 vs 0.678). The same data did **not** help the base
+model (external mean 0.683 and 0.666 over two seeds vs 0.694), so pii-redactor-base stays at v1.0. To pin the previous
+small model, load it with `revision="v1.0"`.""".format(pv11=ext[args.ours_key].get("ours_synthetic_payment", {}).get("redact_recall", float("nan")))
+    if V11 else """### Versions
+
+This base model is still v1.0. We trained a v1.1 with extra payment and bank snippets (as in pii-redactor-small v1.1),
+but it lowered this model's external mean redaction F1 (0.683 and 0.666 over two seeds vs 0.694), so we kept v1.0. If
+card expiry dates and CVVs matter for you, pii-redactor-small v1.1 handles them better.""")
+NUMERIC_LIMIT = ("""- Languages outside the training set, and unusual numeric formats, are weaker. v1.1 fixed most payment-card misses
+  (expiry dates, CVVs), but other long ID numbers with unusual grouping can still be only partly masked."""
+    if V11 else """- Languages outside the training set, and long numeric strings with unusual grouping, are weaker. For example, a
+  space-separated 16-digit card number can be only partly masked, and a bare CVV next to it can be missed.""")
+V11_TRAIN = ("""
+- v1.1: plus 6,000 programmatic payment and bank snippets (`code/pii/build_pii_v3.py`; exact labels, card expiry
+  labelled `DATE`, amounts and times left unlabelled).""" if V11 else "")
 
 card = f"""---
 license: apache-2.0
@@ -134,7 +158,7 @@ financial data, credentials and API keys, network and device identifiers, and mo
 - **Open**: Apache-2.0, ungated, trained only on permissively licensed data.
 - **Multilingual**: 30+ languages, Latin and non-Latin scripts.
 - **Small**: {params} parameters, CPU-friendly. ONNX and transformers.js work in the browser and at the edge.
-- **Measured honestly**: evaluated on four external benchmarks (plus one held-out set of our own) that no model below was trained on, against the most
+- **Measured honestly**: evaluated on four external benchmarks (plus two held-out sets of our own) that no model below was trained on, against the most
   used open PII models. It is not the best on every benchmark; see the table.
 
 Try it in the browser: [Horizon-Labs/pii-redactor demo](https://huggingface.co/spaces/Horizon-Labs/pii-redactor).
@@ -226,8 +250,12 @@ Reading this table:
 - \* The last row is a held-out set we generated with Qwen3.8-27B: secrets in code, config files and logs, plus
   chat and email threads, in 36 languages. This model was **not** trained on any of that generator's output, but we
   built the set ourselves, so read it as supporting evidence only.
+- \*\* Payment snippets from our own template generator (`code/pii/build_pii_v3.py`) with held-out templates and
+  keywords. {"This v1.1 model was trained on other templates from the same generator, so this row is partly in-distribution for it." if V11 else "This model was not trained on them."}
 - TAB counts DIRECT identifiers in court judgments, such as names and case-application numbers. Case numbers are not a
   type any of these models were trained for.
+
+{VERSION_NOTE}
 
 ### In-distribution held-out sets
 
@@ -242,8 +270,7 @@ These come from the same generators as the training data, so they overstate real
 - It is not a guarantee of anonymization. Quasi-identifiers (job title plus town plus age) and free-text descriptions
   can still identify people.
 - Dates are tagged whether or not they are personal, which over-redacts public dates.
-- Languages outside the training set, and long numeric strings with unusual grouping, are weaker. For example, a
-  space-separated 16-digit card number can be only partly masked, and a bare CVV next to it can be missed.
+{NUMERIC_LIMIT}
 
 ## Training
 
@@ -252,7 +279,7 @@ These come from the same generators as the training data, so they overstate real
 - Data (about 400k documents): [OpenPII 1.5M](https://huggingface.co/datasets/ai4privacy/pii-masking-openpii-1.5m)
   (CC-BY-4.0, ai4privacy; language-balanced 256k sample), [Nemotron-PII](https://huggingface.co/datasets/nvidia/Nemotron-PII)
   (CC-BY-4.0, NVIDIA), and [Gretel PII masking EN v1](https://huggingface.co/datasets/gretelai/gretel-pii-masking-en-v1)
-  (Apache-2.0). Their label sets were mapped to one Presidio-aligned taxonomy (`code/pii/build_pii_v0.py`).
+  (Apache-2.0). Their label sets were mapped to one Presidio-aligned taxonomy (`code/pii/build_pii_v0.py`).{V11_TRAIN}
 - Attribution: this model is trained on CC-BY-4.0 data from ai4privacy and NVIDIA. Please keep this notice when
   redistributing derivatives.
 
