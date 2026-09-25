@@ -44,18 +44,27 @@ EN = [("agnews", "AG News (4) §"), ("yahoo", "Yahoo Answers (10) §"), ("bankin
       ("emotion", "Emotion (6) §"), ("sst2", "SST-2 (2) §")]
 en_rows = [(n, (lambda k: lambda c: acc(c, k))(k)) for k, n in EN] + \
           [("MASSIVE, English only", lambda c: acc(c, "massive", "en")), ("SIB-200, English only", lambda c: acc(c, "sib200", "en"))]
-ver_cols = {"v1.0": v10, "**v1.1 (this version)**": me} if v10 else None
+v11 = json.load(open(f"release/evals/zs_{size}_v1.1.json")) if os.path.exists(f"release/evals/zs_{size}_v1.1.json") else None
+VER = "v1.2" if v11 else "v1.1"
+ver_cols = ({"v1.0": v10, "v1.1": v11, "**v1.2 (this version)**": me} if v11 else {"v1.0": v10, "**v1.1 (this version)**": me}) if v10 else None
 ver_rows = [("MASSIVE (unseen label set)", lambda c: acc(c, "massive")), ("Banking77 (unseen label set)", lambda c: acc(c, "banking77")),
             ("XNLI (balanced acc.)", lambda c: c["xnli"]["all"]["bacc"]), ("SIB-200 §", lambda c: acc(c, "sib200")),
             ("AG News §", lambda c: acc(c, "agnews")), ("Yahoo Answers §", lambda c: acc(c, "yahoo")),
             ("Emotion §", lambda c: acc(c, "emotion")), ("SST-2 §", lambda c: acc(c, "sst2"))]
 xnli_rows = [("XNLI test, 12 languages (balanced acc.) †", lambda c: c["xnli"]["all"]["bacc"])]
 
-VERSION_SECTION = ("""### v1.0 → v1.1
+PIN = '`revision="v1.0"` or `revision="v1.1"`' if v11 else '`revision="v1.0"`'
+DISTILL_LINE = ("  - (v1.2) Distillation: half of the loss uses the probabilities of multilingual-zeroshot-large (568M) on the same\n"
+                "    training pairs instead of the hard labels.\n") if v11 else ""
+VERSION_SECTION = ("""### Versions
 
 v1.1 adds data with broad, reusable label taxonomies, so it is better on common categories (topics, emotions,
 sentiment, aspects) — the § rows, where the label names are familiar to it. On label sets it has not seen it stays
-within about ±0.015 of v1.0 (slightly lower on some). To pin the previous model, load it with `revision="v1.0"`.
+within about ±0.015 of v1.0 (slightly lower on some).""" + ("""
+
+v1.2 (this version) is distilled from the large model: it is trained on the same data, with half of the loss on the
+large model's probabilities instead of the hard labels. It gains most on the unseen MASSIVE label set; other rows
+move by about ±0.01.""" if v11 else "") + f""" To pin an earlier model, load it with {PIN}.
 
 """ + table(ver_cols, ver_rows) + "\n\n") if ver_cols else ""
 ARCH_TAGS = "- xlm-roberta\n- bge-m3" if size == "large" else "- modernbert\n- mmbert"
@@ -218,7 +227,7 @@ first scores 0.99, which suggests it saw the test sentences). Our models never s
   - Synthetic zero-shot tasks by Qwen3.8-27B: FineWeb-Edu / FineWeb-2 passages (ODC-BY) labelled by topic, genre,
     audience, tone and purpose with near-miss wrong labels, and ~90k short texts (requests, reviews, tickets, posts,
     headlines) over 26 task types, 32 domains and 33 languages, each with an invented label set and hypothesis template.
-  - (v1.1) Generic taxonomies by Qwen3.8-27B: 24k new FineWeb / FineWeb-2 passages labelled for topic, text type,
+{DISTILL_LINE}  - (v1.1) Generic taxonomies by Qwen3.8-27B: 24k new FineWeb / FineWeb-2 passages labelled for topic, text type,
     sentiment, audience, purpose and news section; ~130k short texts written for fixed label sets (emotion, sentiment,
     Q&A question topic, news section, customer-message topic, urgency, formality, spam) without using the label words;
     ~25k reviews in 8 domains mentioning aspects (e.g. "internet", "food") without naming them.

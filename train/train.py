@@ -23,6 +23,7 @@ ap.add_argument("--seed", type=int, default=0)
 ap.add_argument("--labels", default="SAFE,INJECTION", help="names for label 0,1")
 ap.add_argument("--drop_sources", default="", help="regex; training/val rows whose source matches are dropped")
 ap.add_argument("--eval_every", type=int, default=500)
+ap.add_argument("--distill", type=float, default=0.0, help="weight of soft-label loss (needs a 'soft' column = teacher P(label 1))")
 args = ap.parse_args()
 random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
 os.makedirs(args.out, exist_ok=True)
@@ -45,7 +46,8 @@ def encode(df):
         enc = tok(df.text.tolist(), df.text_pair.tolist(), truncation="longest_first", max_length=args.max_len)
     else:
         enc = tok(df.text.tolist(), truncation=True, max_length=args.max_len)
-    return [(ids, int(l)) for ids, l in zip(enc["input_ids"], df.label)]
+    soft = df.soft.tolist() if (args.distill > 0 and "soft" in df.columns) else [float(l) for l in df.label]
+    return [(ids, int(l), float(sv)) for ids, l, sv in zip(enc["input_ids"], df.label, soft)]
 
 
 t0 = time.time()
@@ -84,7 +86,8 @@ def collate(data, b):
         x = data[i][0]
         ids[j, : len(x)] = torch.tensor(x); att[j, : len(x)] = 1
     y = torch.tensor([data[i][1] for i in b])
-    return ids.cuda(non_blocking=True), att.cuda(non_blocking=True), y.cuda(non_blocking=True)
+    sv = torch.tensor([data[i][2] for i in b], dtype=torch.float)
+    return ids.cuda(non_blocking=True), att.cuda(non_blocking=True), y.cuda(non_blocking=True), sv.cuda(non_blocking=True)
 
 
 @torch.no_grad()
@@ -92,7 +95,7 @@ def evaluate():
     model.eval()
     probs = np.zeros(len(va_enc))
     for b in batches(va_enc, False):
-        ids, att, _ = collate(va_enc, b)
+        ids, att, _, _ = collate(va_enc, b)
         with torch.autocast("cuda", dtype=torch.bfloat16):
             lo = model(input_ids=ids, attention_mask=att).logits.float()
         probs[b] = torch.softmax(lo, -1)[:, 1].cpu().numpy()
@@ -124,10 +127,13 @@ model.train()
 t0 = time.time()
 while step < total:
     for b in batches(tr_enc, True):
-        ids, att, y = collate(tr_enc, b)
+        ids, att, y, sv = collate(tr_enc, b)
         with torch.autocast("cuda", dtype=torch.bfloat16):
             logits = model(input_ids=ids, attention_mask=att).logits.float()
         loss = torch.nn.functional.cross_entropy(logits, y)
+        if args.distill > 0:   # soft targets from a teacher: [1 - p, p]
+            soft_t = torch.stack([1 - sv, sv], -1)
+            loss = (1 - args.distill) * loss + args.distill * torch.sum(-soft_t * torch.log_softmax(logits, -1), -1).mean()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         opt.step(); sch.step(); opt.zero_grad(set_to_none=True)
