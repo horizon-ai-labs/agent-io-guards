@@ -9,6 +9,8 @@ REPO = f"Horizon-Labs/hallucination-guard-{size}"
 me = json.load(open(f"release/evals/ground_{size}.json"))
 ot = json.load(open(f"release/evals/ground_{other}.json"))
 bl = json.load(open("release/evals/ground_baselines.json"))
+import os
+V11 = size == "base" and os.path.exists("release/evals/ground_base_v1.0.json")
 cols = {"**this model**": me, f"{other} ({SIZES[other][1]})": ot, "MiniCheck-RoBERTa-L": bl["lytang/MiniCheck-RoBERTa-Large"],
         "MiniCheck-DeBERTa-L": bl["lytang/MiniCheck-DeBERTa-v3-Large"], "HHEM-2.1-open": bl["vectara/hallucination_evaluation_model"]}
 AGG = [("aggrefact_aggrefact_cnn", "AggreFact-CNN"), ("aggrefact_aggrefact_xsum", "AggreFact-XSum"), ("aggrefact_claimverify", "ClaimVerify"),
@@ -36,6 +38,30 @@ def table(rows, extra_rows=()):
 
 agg_mean = lambda c: sum(c[k]["bacc"] for k, _ in AGG) / len(AGG)
 nonen_mean = lambda c: sum(c[k]["bacc"] for k, _ in LANG[1:]) / (len(LANG) - 1)
+
+def _m(c, keys): return sum(c[k]["bacc"] for k in keys) / len(keys)
+def _a(c, keys): return sum(c[k]["auc"] for k in keys) / len(keys)
+if V11:
+    v10 = json.load(open("release/evals/ground_base_v1.0.json")); s1 = json.load(open("release/evals/ground_base_v1.1_seed1.json"))
+    r1 = json.load(open("release/evals/ground_base_v1.0recipe_seed1.json"))
+    AK = [k for k, _ in AGG]; NK = [k for k, _ in LANG[1:]]
+    vrow = lambda n, c: f"| {n} | {_m(c, AK):.3f} | {_a(c, AK):.3f} | {_m(c, NK):.3f} | {_a(c, NK):.3f} | {c['halueval_qa']['bacc']:.3f} | {c['ragtruth_test']['bacc']:.3f} |"
+    VERSION_SECTION = "\n".join([
+        "### Versions", "",
+        "v1.1 (this version) adds about 147k multi-sentence claim pairs (claims whose facts are spread over several sentences of",
+        "the source, and the same pairs with one needed sentence removed). It is better on English claim-level fact-checking",
+        "(LLM-AggreFact). On translated HaluEval it scores lower than v1.0, but a large part of that gap is training noise:",
+        "retraining the v1.0 recipe with another random seed gives very different HaluEval numbers (rows below). The translated-",
+        "HaluEval AUC is consistently about 0.02 lower with the v1.1 data, so part of the difference is real. Pin the previous",
+        'model with `revision="v1.0"`.', "",
+        "| | AggreFact bacc | AggreFact AUC | 6 languages bacc | 6 languages AUC | HaluEval QA | RAGTruth |",
+        "|---|---|---|---|---|---|---|",
+        vrow("v1.0 (released)", v10), vrow("v1.0 recipe, another seed", r1), vrow("**v1.1 (this version)**", me), vrow("v1.1 recipe, another seed", s1), ""])
+else:
+    VERSION_SECTION = ""
+V11_TRAIN = ("\n  - (v1.1) About 147k multi-sentence claim pairs generated with Qwen3.8-27B (`code/ground/gen_c2d.py`): invented documents"
+             " whose facts are spread over different sentences, and FineWeb / FineWeb-2 passages with claims that combine 2-3 sentences;"
+             " unsupported versions remove one needed sentence. About 40% English.") if V11 else ""
 
 card = f"""---
 license: apache-2.0
@@ -95,6 +121,8 @@ summaries and agent outputs that add, change or contradict facts.
 - **Honest about where it loses**: on English claim-level fact-checking (LLM-AggreFact), MiniCheck and HHEM are
   better. If you only need English, compare them on your data.
 
+Try it in the browser: [Horizon-Labs/hallucination-guard demo](https://huggingface.co/spaces/Horizon-Labs/hallucination-guard).
+
 Part of [Agent I/O Guards](https://huggingface.co/collections/Horizon-Labs/agent-i-o-guards-6ab403c49494bc2b71ca7669)
 (prompt injection, PII, groundedness). Source code: [github.com/horizon-ai-labs/agent-io-guards](https://github.com/horizon-ai-labs/agent-io-guards).
 
@@ -142,6 +170,7 @@ which may favour our model somewhat.
 
 {table(LANG, [("Mean of the 6 non-English languages", nonen_mean)])}
 
+{VERSION_SECTION}
 ### Other benchmarks
 
 {table(OTHER)}
@@ -152,6 +181,9 @@ which may favour our model somewhat.
   ({agg_mean(me):.3f}) on LLM-AggreFact. Our advantage is in other languages, and in QA and dialogue grounding.
 - It judges support by the given source only. It is not a world-knowledge fact checker: a true statement that the
   source doesn't contain is `UNSUPPORTED`.
+- Simple arithmetic or temporal inferences are often marked `UNSUPPORTED`. For example, "opened before 2022" given a
+  source that says "opened in March 2021". The small model also misses some paraphrases ("weekdays" for "Monday to
+  Friday") that the base model handles.
 - Summaries with many small details (HaluEval summarization) and expert long-form answers (ExpertQA) are hard for
   every model here.
 - Much of the training data is synthetic (Qwen3.8-27B). The multilingual numbers come from translated data, not native
@@ -167,7 +199,7 @@ which may favour our model somewhat.
   - Qwen-generated documents in 18 genres (news, meeting transcripts, support chats, retrieved snippets, reviews,
     contracts…) with supported and unsupported claims, in 30 languages.
   - [RAGTruth](https://huggingface.co/datasets/wandb/RAGTruth-processed) train split (MIT), response level.
-  - [WANLI](https://huggingface.co/datasets/alisawuffles/WANLI) (CC-BY-4.0).
+  - [WANLI](https://huggingface.co/datasets/alisawuffles/WANLI) (CC-BY-4.0).{V11_TRAIN}
 - Not used: ANLI and other non-commercial NLI data, DocNLI (derived from non-commercial sources), and every benchmark
   above except RAGTruth's train split.
 """

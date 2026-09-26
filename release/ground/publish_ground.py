@@ -14,7 +14,7 @@ ops.append(CommitOperationAdd("README.md", f"release/ground/{size}/README.md"))
 ops.append(CommitOperationAdd("eval/this_model.json", f"release/evals/ground_{size}.json"))
 ops.append(CommitOperationAdd("eval/baselines.json", "release/evals/ground_baselines.json"))
 for p in ["ground/gen_ground.py", "ground/gen_ground_v2.py", "ground/build_ground.py", "ground/build_ground_v1.py", "ground/build_ground_v2.py",
-          "ground/evaluate_ground.py", "ground/translate_halueval.py", "train/train.py", "train/export_onnx.py"]:
+          "ground/evaluate_ground.py", "ground/translate_halueval.py", "ground/gen_c2d.py", "ground/build_ground_v3.py", "train/train.py", "train/export_onnx.py"]:
     ops.append(CommitOperationAdd(f"code/{p}", p))
 pats = [x for x in os.environ.get("LEAK_PATTERNS", "").split(",") if x]
 for o in ops:
