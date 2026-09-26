@@ -14,7 +14,7 @@ ops.append(CommitOperationAdd("README.md", f"release/zeroshot/{size}/README.md")
 ops.append(CommitOperationAdd("eval/this_model.json", f"release/evals/zs_{size}.json"))
 ops.append(CommitOperationAdd("eval/baselines.json", "release/evals/zs_baselines.json"))
 ops.append(CommitOperationAdd("eval/native_labels.json", "release/evals/zs_native_labels.json"))
-for p in ["zeroshot/gen_zeroshot.py", "zeroshot/gen_zeroshot_v2.py", "zeroshot/translate_nli.py", "zeroshot/translate_labelsets.py", "zeroshot/translate_labels.py", "zeroshot/build_zs_data.py", "zeroshot/build_evals.py",
+for p in ["zeroshot/gen_zeroshot.py", "zeroshot/gen_zeroshot_v2.py", "zeroshot/translate_nli.py", "zeroshot/translate_labelsets.py", "zeroshot/translate_labels.py", "zeroshot/build_zs_data.py", "zeroshot/build_evals.py", "zeroshot/build_evals2.py",
           "zeroshot/evaluate_zs.py", "train/train.py", "train/export_onnx.py"]:
     ops.append(CommitOperationAdd(f"code/{p}", p))
 pats = [x for x in os.environ.get("LEAK_PATTERNS", "").split(",") + [os.environ.get("HF_TOKEN", ""), os.environ.get("GH_TOKEN", "")] if x]

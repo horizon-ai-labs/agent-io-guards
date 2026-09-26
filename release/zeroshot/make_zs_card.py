@@ -40,9 +40,10 @@ def table(cs, rows):
 
 
 multi_rows = [("MASSIVE intents (60 labels), 16 languages", lambda c: acc(c, "massive")),
+              ("MTOP intents (88 labels), 6 languages", lambda c: acc(c, "mtop")),
               ("SIB-200 topics (7 labels), 16 languages §", lambda c: acc(c, "sib200"))]
 lang_rows = [(NAMES[l], (lambda l: lambda c: (acc(c, "massive", l) + acc(c, "sib200", l)) / 2)(l)) for l in LANGS]
-EN = [("agnews", "AG News (4) §"), ("yahoo", "Yahoo Answers (10) §"), ("banking77", "Banking77 (77)"),
+EN = [("agnews", "AG News (4) §"), ("yahoo", "Yahoo Answers (10) §"), ("banking77", "Banking77 (77)"), ("clinc", "CLINC150 (150) §"),
       ("emotion", "Emotion (6) §"), ("sst2", "SST-2 (2) §")]
 en_rows = [(n, (lambda k: lambda c: acc(c, k))(k)) for k, n in EN] + \
           [("MASSIVE, English only", lambda c: acc(c, "massive", "en")), ("SIB-200, English only", lambda c: acc(c, "sib200", "en"))]
@@ -55,6 +56,8 @@ v11 = "v1.1" in PREV
 ver_rows = [("MASSIVE (unseen label set)", lambda c: acc(c, "massive")),
             ("MASSIVE, native labels (15 languages)", lambda c: c.get("native_labels", {}).get("massive")),
             ("SIB-200, native labels (15 languages)", lambda c: c.get("native_labels", {}).get("sib200")), ("Banking77 (unseen label set)", lambda c: acc(c, "banking77")),
+            ("MTOP (unseen label set)", lambda c: c.get("mtop", {}).get("all", {}).get("acc")),
+            ("CLINC150 §", lambda c: c.get("clinc", {}).get("all", {}).get("acc")),
             ("XNLI (balanced acc.)", lambda c: c["xnli"]["all"]["bacc"]), ("SIB-200 §", lambda c: acc(c, "sib200")),
             ("AG News §", lambda c: acc(c, "agnews")), ("Yahoo Answers §", lambda c: acc(c, "yahoo")),
             ("Emotion §", lambda c: acc(c, "emotion")), ("SST-2 §", lambda c: acc(c, "sst2"))]
@@ -213,7 +216,9 @@ these datasets' training splits, except where marked. ‡ = trained partly on da
 § = **label names seen in our synthetic training data**. Since v1.1 our training data includes generic label
 taxonomies (topics, news sections, Q&A question topics, emotions, sentiment) whose label names overlap these benchmarks'
 label sets; for Yahoo Answers and AG News almost exactly. No benchmark texts were used, but on these rows our models are
-not zero-shot with respect to the label names, so compare with care. MASSIVE, Banking77 and XNLI label sets were not used.
+not zero-shot with respect to the label names, so compare with care. For CLINC150, 31 of the 150 intent names occur in
+our training data. The MASSIVE, Banking77, MTOP and XNLI label sets were not used (1-2 names each occur by chance, such
+as "play music").
 
 ### Multilingual
 
@@ -239,7 +244,7 @@ first scores 0.99, which suggests it saw the test sentences). Our models never s
 - English-only models trained with more (partly non-commercial) classification data are better on English topic
   and emotion benchmarks (e.g. deberta-v3-base-zeroshot-v2.0 on Emotion and Yahoo). If you only need English, compare
   them on your data.
-- bge-m3-zeroshot-v2.0 (568M, trained partly on non-commercial data) scores higher on MASSIVE and SIB-200.
+- bge-m3-zeroshot-v2.0 (568M, trained partly on non-commercial data) scores higher on MASSIVE, SIB-200 and MTOP.
 - Zero-shot accuracy depends a lot on label wording and the template. Use descriptive labels ("request a refund"
   rather than "refund_req") and try a template that fits your task. The model links explicit wording better than
   implied categories. Example (small v1.1, multi-label, a gym review not like our training domains): "The machines are
