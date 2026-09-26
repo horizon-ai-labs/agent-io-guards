@@ -25,7 +25,8 @@ def probs(path):
     for x in texts:
         e = tok(x, truncation=True, max_length=1024, return_tensors="np")
         lo = s.run(None, {"input_ids": e["input_ids"], "attention_mask": e["attention_mask"]})[0][0]
-        out.append(1 / (1 + np.exp(lo[0] - lo[1])))
+        # MULTILABEL=1 (content-safety guard): score = sigmoid of logit 0 ("unsafe"); else 2-class softmax P(label 1)
+        out.append(1 / (1 + np.exp(-lo[0])) if os.environ.get("MULTILABEL") else 1 / (1 + np.exp(lo[0] - lo[1])))
     return np.array(out), (time.time() - t) / len(texts)
 
 

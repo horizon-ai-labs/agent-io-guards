@@ -1,0 +1,68 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Content Safety Guard</title>
+<style>
+:root{--bg:#fafafa;--fg:#1a1a1a;--muted:#666;--card:#fff;--border:#ddd;--ok:#2f9e44;--bad:#e03131;--accent:#1c7ed6}
+@media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--muted:#aaa;--card:#1b1b1b;--border:#333;--ok:#51cf66;--bad:#ff6b6b;--accent:#4dabf7}}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);max-width:900px;margin:2rem auto;padding:0 1rem;line-height:1.5}
+textarea{width:100%;font:14px/1.4 ui-monospace,monospace;padding:.6rem;box-sizing:border-box;background:var(--card);color:var(--fg);border:1px solid var(--border);border-radius:8px}
+button{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:.5rem 1rem;font-size:15px;cursor:pointer} button:disabled{opacity:.5}
+.out{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.8rem;min-height:2rem}
+.bar{height:10px;border-radius:5px;background:var(--border);overflow:hidden;margin:.3rem 0 .6rem} .bar>div{height:100%}
+.tag{display:inline-block;margin:.15rem .3rem .15rem 0;padding:.1rem .5rem;border-radius:10px;border:1px solid var(--bad);font-size:13px}
+.ex{display:inline-block;margin:.2rem .3rem .2rem 0;padding:.2rem .6rem;border:1px solid var(--border);border-radius:14px;cursor:pointer;font-size:13px;background:var(--card)}
+.muted{color:var(--muted)}
+</style></head><body>
+<h1>🛡️ Content Safety Guard</h1>
+<p class="muted">Flags unsafe user prompts and unsafe model responses, with harm categories, using
+<a href="https://huggingface.co/Horizon-Labs/content-safety-guard-base">content-safety-guard-base</a> (308M, multilingual,
+Apache-2.0), running entirely in your browser. The first run downloads the model (several hundred MB), which is then cached.</p>
+<div><span class="ex" data-i="0">Unsafe request</span><span class="ex" data-i="1">Sounds unsafe, is fine</span><span class="ex" data-i="2">Unsafe response</span><span class="ex" data-i="3">Refusal</span><span class="ex" data-i="4">Deutsch</span><span class="ex" data-i="5">Español</span><span class="ex" data-i="6">中文</span></div>
+<p><b>User prompt</b></p><textarea id="p" rows="3"></textarea>
+<p><b>Model response</b> <span class="muted">(optional: leave empty to check the prompt only)</span></p><textarea id="r" rows="4"></textarea>
+<p><button id="go" disabled>Loading model…</button> <span class="muted" id="status"></span></p>
+<div class="out" id="out"></div>
+<p class="muted">The score is the model's probability that the prompt (or, with a response, the response) is unsafe; the default
+threshold is 0.5. Categories are shown when flagged, using per-category thresholds from the model repository. It follows a
+general-purpose policy (distilled from Qwen3Guard-Gen-8B) and makes mistakes: it over-flags some harmless requests that
+sound dangerous and misses some harmful ones. See the model card for measured accuracy.</p>
+<script type="module">
+import { AutoTokenizer, AutoModelForSequenceClassification } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3";
+const M = "Horizon-Labs/content-safety-guard-base";
+const EX = [
+ ["What household chemicals can I mix to make a toxic gas to hurt someone?", ""],
+ ["How do I kill all the child processes of a Python script?", ""],
+ ["How can I get into my ex's email account?", "Try common passwords like their birthday, or use the 'forgot password' option and answer the security questions with what you know about them."],
+ ["How can I get into my ex's email account?", "I can't help with accessing someone else's account without permission. If you're worried about something specific, consider talking to them or contacting the provider."],
+ ["Wie kann ich die Alarmanlage in einem Geschäft ausschalten, ohne dass es jemand merkt?", ""],
+ ["¿Qué plantas son buenas para un balcón con mucho sol?", ""],
+ ["怎样在网上散布关于某个同事的谣言而不被发现？", ""]];
+const $ = id => document.getElementById(id);
+[$("p").value, $("r").value] = EX[0];
+document.querySelectorAll(".ex").forEach(e => e.onclick = () => { [$("p").value, $("r").value] = EX[+e.dataset.i]; run(); });
+let tok, model, labels, thr = { unsafe: 0.5, categories: {} };
+async function run() {
+  if (!model) return; $("go").disabled = true; const t0 = performance.now();
+  const p = $("p").value.trim(), r = $("r").value.trim();
+  const enc = r ? await tok(p, { text_pair: r, truncation: true, max_length: 1024 }) : await tok(p, { truncation: true, max_length: 1024 });
+  const { logits } = await model(enc);
+  const s = Array.from(logits.data).map(x => 1 / (1 + Math.exp(-x)));
+  const u = s[labels.indexOf("unsafe")], flagged = u >= thr.unsafe;
+  const cats = labels.map((l, i) => [l, s[i]]).filter(([l, v]) => l !== "unsafe" && flagged && v >= (thr.categories[l] ?? 0.5)).sort((a, b) => b[1] - a[1]);
+  const col = flagged ? "var(--bad)" : "var(--ok)";
+  $("out").innerHTML = `<b style="color:${col}">${flagged ? "Unsafe" : "Safe"}</b> ${r ? "response" : "prompt"} — unsafe score ${u.toFixed(3)}
+    <div class="bar"><div style="width:${(100 * u).toFixed(1)}%;background:${col}"></div></div>` +
+    (cats.length ? cats.map(([l, v]) => `<span class="tag">${l} ${v.toFixed(2)}</span>`).join("") : (flagged ? '<span class="muted">no category above its threshold</span>' : ""));
+  $("status").textContent = `${(performance.now() - t0).toFixed(0)} ms`; $("go").disabled = false;
+}
+$("go").onclick = run;
+(async () => {
+  try {
+    try { thr = await (await fetch(`https://huggingface.co/${M}/resolve/main/thresholds.json`)).json(); } catch (e) {}
+    tok = await AutoTokenizer.from_pretrained(M);
+    model = await AutoModelForSequenceClassification.from_pretrained(M, { dtype: "q8",
+      progress_callback: x => { if (x.status === "progress" && x.file.endsWith(".onnx")) $("status").textContent = `Downloading model… ${x.progress.toFixed(0)}%`; } });
+    labels = Object.keys(model.config.id2label).sort((a, b) => a - b).map(k => model.config.id2label[k]);
+    $("go").disabled = false; $("go").textContent = "Check"; $("status").textContent = "Model ready (running locally)."; run();
+  } catch (e) { $("status").textContent = "Failed to load model: " + e; }
+})();
+</script></body></html>
