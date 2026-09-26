@@ -47,7 +47,7 @@ EN = [("agnews", "AG News (4) §"), ("yahoo", "Yahoo Answers (10) §"), ("bankin
 en_rows = [(n, (lambda k: lambda c: acc(c, k))(k)) for k, n in EN] + \
           [("MASSIVE, English only", lambda c: acc(c, "massive", "en")), ("SIB-200, English only", lambda c: acc(c, "sib200", "en"))]
 # version history: release/evals/zs_{size}_v<X>.json for earlier versions; the current one is zs_{size}.json, named by $VERSION
-CUR = os.environ.get("VERSION", {"small": "v1.1", "base": "v1.2", "large": "v1.1"}[size])
+CUR = os.environ.get("VERSION", {"small": "v1.3", "base": "v1.3", "large": "v1.1"}[size])
 PREV = sorted([f[len(f"zs_{size}_"):-5] for f in os.listdir("release/evals") if f.startswith(f"zs_{size}_v") and f.endswith(".json")])
 PREV = [v for v in PREV if v < CUR]
 ver_cols = ({**{v: json.load(open(f"release/evals/zs_{size}_{v}.json")) for v in PREV}, f"**{CUR} (this version)**": me}) if PREV else None
@@ -93,7 +93,8 @@ VDESC = {
     "v1.3": "v1.3 adds native-language labels: for half of the non-English training texts, the label set and template were translated\n"
             "into the text's language (by Qwen3.8-27B). It is clearly better when labels are written in the text's language (see\n"
             "above); with English labels it is about the same or better on the unseen label sets (MASSIVE, Banking77), and the\n"
-            "table shows the other rows, which move in both directions.",
+            "table shows the other rows, which move in both directions." + (" Like v1.2, it is distilled from the large model (now on\n"
+            "the v1.3 data)." if size == "base" else ""),
 }
 _hist = [v for v in ["v1.1", "v1.2", "v1.3"] if v in PREV + [CUR] and (v != "v1.2" or size == "base")]
 PIN = " or ".join(f'`revision="{v}"`' for v in PREV)
@@ -241,7 +242,7 @@ first scores 0.99, which suggests it saw the test sentences). Our models never s
 - bge-m3-zeroshot-v2.0 (568M, trained partly on non-commercial data) scores higher on MASSIVE and SIB-200.
 - Zero-shot accuracy depends a lot on label wording and the template. Use descriptive labels ("request a refund"
   rather than "refund_req") and try a template that fits your task. The model links explicit wording better than
-  implied categories. Example (small model, multi-label, a gym review not like our training domains): "The machines are
+  implied categories. Example (small v1.1, multi-label, a gym review not like our training domains): "The machines are
   always taken after 5pm and half the treadmills are broken, but the coaches really know their stuff. For 60 euros a
   month I expected cleaner showers." gives equipment 0.99, trainers 0.97, membership cost 0.82, but hygiene only 0.28
   and crowding 0.03 (v1.0: trainers 0.56, membership cost 0.58).
