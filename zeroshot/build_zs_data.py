@@ -16,6 +16,13 @@ OUT, GEN = sys.argv[1], sys.argv[2:]
 # variants (env): SNLI_N (default 100000), SHORT_NEG (negatives per short text, default 3), ZS_REPEAT (default 1)
 SNLI_N, SHORT_NEG, ZS_REPEAT = int(os.environ.get("SNLI_N", 100000)), int(os.environ.get("SHORT_NEG", 3)), int(os.environ.get("ZS_REPEAT", 1))
 TAX_NEG = int(os.environ.get("TAX_NEG", 6))   # negatives per text from a generic taxonomy (v2 data)
+# native-language labels (v1.3): NATIVE = jsonl from zeroshot/translate_labelsets.py; NATIVE_FRAC of matching items use them
+NATIVE_MAP = {}
+for p in [x for x in os.environ.get("NATIVE", "").split(",") if x]:
+    for line in open(p):
+        j = json.loads(line)
+        NATIVE_MAP[(j["lang"], tuple(j["labels"]), j["template"])] = (j["native_labels"], j["native_template"])
+NATIVE_FRAC = float(os.environ.get("NATIVE_FRAC", 0.5))
 rng = random.Random(0)
 GENERIC = ["This example is {}.", "This text is about {}.", "The topic of this text is {}.", "This is about {}.", "{}",
            "This text is {}.", "This is an example of {}.", "It is about {}.", "The category is {}.", "This is {}."]
@@ -75,17 +82,28 @@ for g in GEN:
             if key in seen or len(j["text"]) < 8:
                 continue
             seen.add(key)
+            nk = (j["lang"], tuple(j["labels"]), j.get("template", "") or "This example is {}.")
+            if nk in NATIVE_MAP and rng.random() < NATIVE_FRAC:   # swap in native labels (gold mapped by position)
+                nl, nt = NATIVE_MAP[nk]; m = dict(zip(j["labels"], nl))
+                j = dict(j, labels=nl, gold=[m[g] for g in j["gold"] if g in m], template=nt if rng.random() < 0.8 else "", task="")
+                if not j["gold"]:
+                    continue
+                j["source"] = j["source"] + "_native"
             gold = set(j["gold"]); neg = [l for l in j["labels"] if l not in gold and l.strip()]
-            if j["source"] == "short":
+            if j["source"].startswith("short"):
                 neg = rng.sample(neg, min(SHORT_NEG, len(neg)))
             elif j["source"].startswith("tax_"):
                 neg = rng.sample(neg, min(TAX_NEG, len(neg)))
             src = "zs_" + j["source"]
+            if src.endswith("_native") and j.get("template"):   # native labels with the native template
+                H = lambda l: j["template"].replace("{}", l, 1)
+            else:
+                H = lambda l: hyp(l, j.get("task", ""), j.get("template", ""))
             for _ in range(ZS_REPEAT):   # repeats get freshly sampled hypothesis templates
                 for l in gold:
-                    add(j["text"], hyp(l, j.get("task", ""), j.get("template", "")), 1, src, j["lang"])
+                    add(j["text"], H(l), 1, src, j["lang"])
                 for l in neg:
-                    add(j["text"], hyp(l, j.get("task", ""), j.get("template", "")), 0, src, j["lang"])
+                    add(j["text"], H(l), 0, src, j["lang"])
 print("zero-shot synthetic", len(rows) - n0, flush=True)
 
 df = pd.DataFrame(rows, columns=["text", "text_pair", "label", "source", "lang"])

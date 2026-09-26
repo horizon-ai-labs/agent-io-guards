@@ -32,8 +32,10 @@ def table(cs, rows):
     lines = ["| | " + " | ".join(cs) + " |", "|---|" + "---|" * len(cs)]
     for name, fn in rows:
         vals = [fn(c) for c in cs.values()]
-        b = max(vals)
-        lines.append(f"| {name} | " + " | ".join(("**%.3f**" if abs(v - b) < 1e-9 else "%.3f") % v for v in vals) + " |")
+        if all(v is None for v in vals):
+            continue
+        b = max(v for v in vals if v is not None)
+        lines.append(f"| {name} | " + " | ".join("–" if v is None else ("**%.3f**" if abs(v - b) < 1e-9 else "%.3f") % v for v in vals) + " |")
     return "\n".join(lines)
 
 
@@ -44,29 +46,60 @@ EN = [("agnews", "AG News (4) §"), ("yahoo", "Yahoo Answers (10) §"), ("bankin
       ("emotion", "Emotion (6) §"), ("sst2", "SST-2 (2) §")]
 en_rows = [(n, (lambda k: lambda c: acc(c, k))(k)) for k, n in EN] + \
           [("MASSIVE, English only", lambda c: acc(c, "massive", "en")), ("SIB-200, English only", lambda c: acc(c, "sib200", "en"))]
-v11 = json.load(open(f"release/evals/zs_{size}_v1.1.json")) if os.path.exists(f"release/evals/zs_{size}_v1.1.json") else None
-VER = "v1.2" if v11 else "v1.1"
-ver_cols = ({"v1.0": v10, "v1.1": v11, "**v1.2 (this version)**": me} if v11 else {"v1.0": v10, "**v1.1 (this version)**": me}) if v10 else None
-ver_rows = [("MASSIVE (unseen label set)", lambda c: acc(c, "massive")), ("Banking77 (unseen label set)", lambda c: acc(c, "banking77")),
+# version history: release/evals/zs_{size}_v<X>.json for earlier versions; the current one is zs_{size}.json, named by $VERSION
+CUR = os.environ.get("VERSION", {"small": "v1.1", "base": "v1.2", "large": "v1.1"}[size])
+PREV = sorted([f[len(f"zs_{size}_"):-5] for f in os.listdir("release/evals") if f.startswith(f"zs_{size}_v") and f.endswith(".json")])
+PREV = [v for v in PREV if v < CUR]
+ver_cols = ({**{v: json.load(open(f"release/evals/zs_{size}_{v}.json")) for v in PREV}, f"**{CUR} (this version)**": me}) if PREV else None
+v11 = "v1.1" in PREV
+ver_rows = [("MASSIVE (unseen label set)", lambda c: acc(c, "massive")),
+            ("MASSIVE, native labels (15 languages)", lambda c: c.get("native_labels", {}).get("massive")),
+            ("SIB-200, native labels (15 languages)", lambda c: c.get("native_labels", {}).get("sib200")), ("Banking77 (unseen label set)", lambda c: acc(c, "banking77")),
             ("XNLI (balanced acc.)", lambda c: c["xnli"]["all"]["bacc"]), ("SIB-200 §", lambda c: acc(c, "sib200")),
             ("AG News §", lambda c: acc(c, "agnews")), ("Yahoo Answers §", lambda c: acc(c, "yahoo")),
             ("Emotion §", lambda c: acc(c, "emotion")), ("SST-2 §", lambda c: acc(c, "sst2"))]
 xnli_rows = [("XNLI test, 12 languages (balanced acc.) †", lambda c: c["xnli"]["all"]["bacc"])]
 
-PIN = '`revision="v1.0"` or `revision="v1.1"`' if v11 else '`revision="v1.0"`'
-DISTILL_LINE = ("  - (v1.2) Distillation: half of the loss uses the probabilities of multilingual-zeroshot-large (568M) on the same\n"
-                "    training pairs instead of the hard labels.\n") if v11 else ""
-VERSION_SECTION = ("""### Versions
-
-v1.1 adds data with broad, reusable label taxonomies, so it is better on common categories (topics, emotions,
-sentiment, aspects) — the § rows, where the label names are familiar to it. On label sets it has not seen it stays
-within about ±0.015 of v1.0 (slightly lower on some).""" + ("""
-
-v1.2 (this version) is distilled from the large model: it is trained on the same data, with half of the loss on the
-large model's probabilities instead of the hard labels. It gains most on the unseen MASSIVE label set; other rows
-move by about ±0.01.""" if v11 else "") + f""" To pin an earlier model, load it with {PIN}.
-
-""" + table(ver_cols, ver_rows) + "\n\n") if ver_cols else ""
+DISTILL_LINE = (("  - (v1.3) Native-language labels: label sets and templates of the non-English synthetic items translated by\n"
+                 "    Qwen3.8-27B into the item's language; half of those items are trained with the native labels.\n") if CUR >= "v1.3" else "") + ("  - (v1.2) Distillation: half of the loss uses the probabilities of multilingual-zeroshot-large (568M) on the same\n"
+                "    training pairs instead of the hard labels.\n" if (size == "base" and CUR >= "v1.2") else "")
+_nat = json.load(open("release/evals/zs_native_labels.json")) if os.path.exists("release/evals/zs_native_labels.json") else None
+NATIVE_SECTION = ""
+if _nat:
+    _rows = []
+    for key, n in [("small", "small (141M)"), ("base", "base (308M)"), ("large", "large (568M)")]:
+        if key in _nat and os.path.exists(f"release/evals/zs_{key}.json"):
+            e = json.load(open(f"release/evals/zs_{key}.json"))
+            _rows.append((("**" + n + "** (this model)") if key == size else n, _nat[key], e))
+    for key, n in [("MoritzLaurer/bge-m3-zeroshot-v2.0-c", "bge-m3-zeroshot-v2.0-c"), ("MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7", "mDeBERTa-v3-base-xnli"),
+                   ("MoritzLaurer/bge-m3-zeroshot-v2.0", "bge-m3-zeroshot-v2.0 ‡")]:
+        if key in _nat:
+            _rows.append((n, _nat[key], bl[key]))
+    def _en(e, ds):   # English-label accuracy on the same 15 non-English languages
+        ls = ["de", "fr", "es", "pt", "ru", "pl", "tr", "ar", "hi", "zh", "ja", "ko", "vi", "id", "sw"]
+        return sum(e[ds][l]["acc"] for l in ls) / len(ls)
+    NATIVE_SECTION = "\n".join(["### Labels in the text's language", "",
+        "Users often write the candidate labels and the template in the language of the text. Below, the MASSIVE and SIB-200",
+        "label sets and templates were translated into each of the 15 non-English languages (by Qwen3.8-27B); accuracy is the mean",
+        "over those languages, next to the same languages with English labels.", "",
+        "| | MASSIVE, native labels | MASSIVE, English labels | SIB-200, native labels | SIB-200, English labels |", "|---|---|---|---|---|"] +
+        [f"| {n} | {nv['massive']:.3f} | {_en(e, 'massive'):.3f} | {nv['sib200']:.3f} | {_en(e, 'sib200'):.3f} |" for n, nv, e in _rows] + ["", ""])
+VDESC = {
+    "v1.1": "v1.1 adds data with broad, reusable label taxonomies, so it is better on common categories (topics, emotions, sentiment,\n"
+            "aspects) — the § rows, where the label names are familiar to it. On label sets it has not seen it stays within about\n"
+            "±0.015 of v1.0 (slightly lower on some).",
+    "v1.2": "v1.2 is distilled from the large model: same data, with half of the loss on the large model's probabilities instead of\n"
+            "the hard labels. It gains most on the unseen MASSIVE label set; other rows move by about ±0.01.",
+    "v1.3": "v1.3 adds native-language labels: for half of the non-English training texts, the label set and template were translated\n"
+            "into the text's language (by Qwen3.8-27B). It is clearly better when labels are written in the text's language (see\n"
+            "above); with English labels it is about the same or better on the unseen label sets (MASSIVE, Banking77), and the\n"
+            "table shows the other rows, which move in both directions.",
+}
+_hist = [v for v in ["v1.1", "v1.2", "v1.3"] if v in PREV + [CUR] and (v != "v1.2" or size == "base")]
+PIN = " or ".join(f'`revision="{v}"`' for v in PREV)
+VERSION_SECTION = ("### Versions\n\n" + "\n\n".join(VDESC[v].replace(v, v + " (this version)", 1) if v == CUR else VDESC[v] for v in _hist) +
+                   ("\n\n(There is no v1.2 of this size: v1.2 was the distilled base model.)" if size != "base" and CUR >= "v1.3" else "") +
+                   f"\n\nTo pin an earlier model, load it with {PIN}.\n\n" + table(ver_cols, ver_rows) + "\n\n") if ver_cols else ""
 ARCH_TAGS = "- xlm-roberta\n- bge-m3" if size == "large" else "- modernbert\n- mmbert"
 SIZE_BULLET = ("- **Most accurate of the family**: 568M parameters (bge-m3 / XLM-RoBERTa-large backbone, MIT), 8k context. Use a GPU "
                "for throughput; ONNX included for CPU (fp32, and int8 embeddings at 1.5 GB with 99-100% top-label agreement)." if size == "large" else
@@ -193,7 +226,7 @@ Per language, mean of MASSIVE and SIB-200:
 
 {table(en_cols, en_rows)}
 
-{VERSION_SECTION}### NLI
+{NATIVE_SECTION}{VERSION_SECTION}### NLI
 
 {table(cols, xnli_rows)}
 
