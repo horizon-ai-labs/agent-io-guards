@@ -7,7 +7,7 @@ size, rd, out = sys.argv[1:4]
 SIZES = {"small": ("jhu-clsp/mmBERT-small", "141M"), "base": ("jhu-clsp/mmBERT-base", "308M")}
 base_model, params = SIZES[size]
 REPO = f"Horizon-Labs/content-safety-guard-{size}"
-VERSION = os.environ.get("VERSION", "v1.1")
+VERSION = os.environ.get("VERSION", "v1.2")
 me = list(json.load(open(f"release/evals/safety_{size}.json")).values())[0]
 bl = json.load(open("release/evals/safety_baselines.json"))
 thr = json.load(open(f"{rd}/thresholds.json"))
@@ -82,8 +82,11 @@ if _vers:
     _lines = ["| | " + " | ".join(_vc) + " |", "|---|" + "---|" * len(_vc)]
     for n, k, m in _vr:
         _lines.append(f"| {n} | " + " | ".join("%.3f" % e[k][m] for e in _vc.values()) + " |")
-    VERSION_SECTION = ("## Versions\n\nv1.1 adds machine-translated toxic comments and red-team prompts in 20 languages: multilingual toxicity "
-                       "(textdetox) and native-speaker red-teaming (Aya) improve clearly; the other rows move by 0.01 or less. "
+    VERSION_SECTION = ("## Versions\n\n- v1.1 adds machine-translated toxic comments and red-team prompts in 20 languages: multilingual "
+                       "toxicity (textdetox) and native-speaker red-teaming (Aya) improve clearly; the other rows move by 0.01 or less.\n"
+                       "- v1.2 adds 25k synthetic requests in 27 languages that use alarming words harmlessly, plus harmful look-alikes "
+                       "(teacher-labelled): it flags fewer safe-but-scary prompts (XSTest 28% -> 21%); ToxicChat F1 is 0.012 lower, other rows "
+                       "move by 0.01 or less.\n\n"
                        f"To pin an earlier model, load it with " + " or ".join(f'`revision="{v}"`' for v in _vers) + ".\n\n" + "\n".join(_lines) + "\n\n")
 
 card = f"""---
@@ -255,6 +258,10 @@ the unsafe items of its test split, with thresholds chosen on its validation spl
     Italian): 47.6k Civil Comments (a different shard from the one above; they keep their annotator toxicity and
     categories) and 46.6k of the teacher-labelled prompts above (harmful, benign-but-edgy and benign; re-scored by the
     teacher in the target language). 1.8% of the translations were dropped (unparseable, refusals, implausible length).
+  - (v1.2) 25k requests written by Qwen3.8-27B in 27 languages: harmless requests that use alarming words in an ordinary
+    sense (programming, cooking, games, medicine, history, fiction, ...) and harmful look-alikes on the same topics, labelled
+    by the teacher. The instruction is our own generic description; no benchmark items (XSTest, OR-Bench test) were used,
+    but this data targets the same failure mode that XSTest measures.
   - Items that match any benchmark text were removed.
 - **Teacher**: [Qwen3Guard-Gen-8B](https://huggingface.co/Qwen/Qwen3Guard-Gen-8B) (Apache-2.0). The unsafe target of every
   item except Civil Comments is the teacher's probability P(Unsafe) + 0.5 · P(Controversial); categories use the human labels. So the model

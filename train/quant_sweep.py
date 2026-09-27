@@ -92,10 +92,11 @@ except Exception as e:
     print("fp16 failed", e, flush=True)
 json.dump(dict(res, best=best), open(f"{d}/onnx_sweep.json", "w"), indent=1)
 print("best", best, res.get(best), flush=True)
-if best and res[best]["agree"] >= 0.995:
+MIN_AGREE = float(os.environ.get("MIN_AGREE", 0.995))   # decision agreement with fp32 needed to ship model_quantized.onnx
+if best and res[best]["agree"] >= MIN_AGREE:
     os.replace(f"{d}/onnx/q_{best}.onnx", f"{d}/onnx/model_quantized.onnx")
 else:
-    print("no int8 config agrees >= 99%; removing model_quantized.onnx", flush=True)
+    print(f"no int8 config agrees >= {MIN_AGREE}; removing model_quantized.onnx", flush=True)
     if os.path.exists(f"{d}/onnx/model_quantized.onnx"):
         os.remove(f"{d}/onnx/model_quantized.onnx")
 for f in glob.glob(f"{d}/onnx/q_*.onnx"):
