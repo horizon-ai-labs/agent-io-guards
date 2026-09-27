@@ -1,0 +1,53 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Content Safety Classifier Leaderboard</title>
+<style>
+:root{--bg:#fafafa;--fg:#1a1a1a;--muted:#666;--card:#fff;--border:#ddd;--hi:#dbe4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--muted:#aaa;--card:#1b1b1b;--border:#333;--hi:#26315c}}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);max-width:1300px;margin:2rem auto;padding:0 1rem;line-height:1.5}
+table{border-collapse:collapse;width:100%;font-size:13px;background:var(--card)} th,td{border:1px solid var(--border);padding:4px 6px;text-align:right}
+th{cursor:pointer;position:sticky;top:0;background:var(--card)} td:first-child,th:first-child,td:nth-child(2),th:nth-child(2),td:nth-child(3),th:nth-child(3){text-align:left}
+td.best{background:var(--hi);font-weight:600} .g{font-size:11px;color:var(--muted);display:block} .muted{color:var(--muted)} .wrap{overflow-x:auto}
+</style></head><body>
+<h1>🧭 Content Safety Classifier Leaderboard</h1>
+<p>Open moderation models that flag unsafe user prompts and model responses, all evaluated with <b>the same script</b> at a 0.5
+threshold on 9 public benchmarks: multilingual prompt and response harm (PolyGuard, 17 languages), response harm (BeaverTails),
+real user prompts (ToxicChat), the OpenAI moderation set, over-blocking (XSTest), multilingual toxicity (textdetox) and recall on
+clearly harmful prompts (Aya red-teaming, SimpleSafetyTests). Click a column to sort; the best value per column is highlighted
+(false-alarm rates are not highlighted, because a model that flags nothing would win).</p>
+<p class="muted"><b>Disclosure:</b> this page is maintained by Horizon Labs, which makes two of the listed models
+(content-safety-guard). Qwen3Guard-Gen-8B was the teacher for our models' labels. The "macro" column is the plain mean F1 over
+the 7 mixed benchmarks; it weights ToxicChat and the OpenAI set, where our models do well, as much as PolyGuard and XSTest,
+where Qwen3Guard-0.6B is better, so read the individual columns too. Vela-Shield was trained on PolyGuardMix, so its PolyGuard
+columns are in-distribution. BeaverTails "unseen" keeps only the 1,894 test items whose prompt is not in our training data
+(BeaverTails and Aegis share HH red-team prompts). Toxicity classifiers (granite-guardian-hap, unitary) target a narrower task
+and are included because they are often used for moderation. Qwen3Guard is scored from its next-token probabilities after
+"Safety:" (strict = Unsafe or Controversial count as unsafe; loose = only Unsafe). Encoders other than ours receive the response
+alone for response items. Eval code: <code>code/safety/eval_safety.py</code> and <code>code/safety/build_safety_evals.py</code> in
+<a href="https://huggingface.co/Horizon-Labs/content-safety-guard-base/tree/main/code">the model repo</a>. Want a model added or
+found a problem? Open a discussion on this Space.</p>
+<div class="wrap"><table id="t"></table></div>
+<p class="muted">Metrics: F1 of the unsafe class (false-alarm rate on safe items in the tooltip); recall on the two all-unsafe sets.
+<span id="snap"></span></p>
+<script>
+fetch("results.json").then(r=>r.json()).then(d=>{
+  document.getElementById("snap").textContent="Snapshot: "+d.snapshot+".";
+  const cols=["model","size","license","macro","mean FPR",...d.sets.map(s=>s[0])];
+  const grp=Object.fromEntries(d.sets.map(s=>[s[0],s[1]]));
+  const rows=d.rows.map(r=>{const f=d.sets.filter(s=>s[2]=="f1").map(s=>r[s[0]+" FPR"]).filter(x=>x!=null);
+    return {...r,"mean FPR":f.reduce((a,b)=>a+b,0)/f.length}});
+  let sortCol="macro",asc=false;
+  function render(){
+    rows.sort((a,b)=>{const x=a[sortCol],y=b[sortCol]; if(typeof x=="string")return asc?x.localeCompare(y):y.localeCompare(x); return asc?x-y:y-x});
+    const best={}; for(const c of cols.slice(3)){if(c=="mean FPR")continue; best[c]=Math.max(...rows.map(r=>r[c]))}
+    let h="<tr>"+cols.map(c=>`<th data-c="${c}">${c}${grp[c]?`<span class="g">${grp[c]}</span>`:""}</th>`).join("")+"</tr>";
+    for(const r of rows){h+="<tr>"+cols.map(c=>{const v=r[c];
+      if(c=="model")return `<td><a href="https://huggingface.co/${v}">${v}</a>${r.mode?` <span class="muted">(${r.mode})</span>`:""}</td>`;
+      if(c=="size"||c=="license")return `<td>${v}</td>`;
+      const tip=r[c+" FPR"]!=null?` title="false alarms ${(100*r[c+" FPR"]).toFixed(1)}%"`:"";
+      return `<td${tip} class="${best[c]!=null&&Math.abs(v-best[c])<1e-9?"best":""}">${v.toFixed(3)}</td>`}).join("")+"</tr>"}
+    const t=document.getElementById("t"); t.innerHTML=h;
+    t.querySelectorAll("th").forEach(th=>th.onclick=()=>{const c=th.dataset.c; asc=(c==sortCol)?!asc:(c=="mean FPR"||c=="model"||c=="license"||c=="size"); sortCol=c; render()});
+  }
+  render();
+});
+</script></body></html>
