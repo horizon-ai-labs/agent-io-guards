@@ -89,6 +89,18 @@ if _vers:
                        "move by 0.01 or less.\n\n"
                        f"To pin an earlier model, load it with " + " or ".join(f'`revision="{v}"`' for v in _vers) + ".\n\n" + "\n".join(_lines) + "\n\n")
 
+_o = other.get("base" if size == "small" else "small")
+SIZE_NOTE = ""
+if _o is not None:
+    _d = {k: me[k]["f1"] - _o[k]["f1"] for k in ["polyguard_prompt", "polyguard_response"]}
+    SIZE_NOTE = (("**Which size?** This small model has less than half the parameters of [base](https://huggingface.co/Horizon-Labs/content-safety-guard-base) "
+                  f"(141M vs 308M; hidden size 384 vs 768), so it needs less compute per token, and its int8 ONNX is about 270 MB instead of 640 MB (better for the browser); it is {-_d['polyguard_prompt']:.3f} / "
+                  f"{-_d['polyguard_response']:.3f} F1 behind base on PolyGuard prompts / responses. First released at v1.2, trained on the "
+                  "same data as base v1.2.\n\n") if size == "small" else
+                 ("**Which size?** This base model (308M) is the more accurate one; "
+                  "[small](https://huggingface.co/Horizon-Labs/content-safety-guard-small) (141M, less compute per token, int8 ONNX about "
+                  f"270 MB) is {_d['polyguard_prompt']:.3f} / {_d['polyguard_response']:.3f} F1 behind on PolyGuard prompts / responses.\n\n"))
+
 card = f"""---
 license: apache-2.0
 language:
@@ -164,7 +176,7 @@ that you can run on CPU or in the browser in front of, or behind, any LLM.
 - **Commercially usable**: Apache-2.0, trained only on data that allows commercial use (see Training data).
 - {onnx_line}
 
-Part of the Horizon Labs guard family: [prompt-injection-guard](https://huggingface.co/Horizon-Labs/prompt-injection-guard-base),
+{SIZE_NOTE}Part of the Horizon Labs guard family: [prompt-injection-guard](https://huggingface.co/Horizon-Labs/prompt-injection-guard-base),
 [pii-redactor](https://huggingface.co/Horizon-Labs/pii-redactor-base), [hallucination-guard](https://huggingface.co/Horizon-Labs/hallucination-guard-base).
 
 ## Usage
@@ -266,7 +278,7 @@ the unsafe items of its test split, with thresholds chosen on its validation spl
 - **Teacher**: [Qwen3Guard-Gen-8B](https://huggingface.co/Qwen/Qwen3Guard-Gen-8B) (Apache-2.0). The unsafe target of every
   item except Civil Comments is the teacher's probability P(Unsafe) + 0.5 · P(Controversial); categories use the human labels. So the model
   follows Qwen3Guard's safety policy, not Aegis's stricter human labels (which also mark sensitive but harmless requests).
-- **Model**: {base_model} with a 16-way sigmoid head (unsafe + 15 categories), 2 epochs, max length 1024 tokens.
+- **Model**: {base_model} with a 16-way sigmoid head (unsafe + 15 categories), {3 if size == "small" else 2} epochs, max length 1024 tokens.
 - Code: `code/` in this repository.
 
 {VERSION_SECTION}## Limitations
