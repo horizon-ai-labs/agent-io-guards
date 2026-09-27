@@ -14,8 +14,9 @@ button{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:.5
 </style></head><body>
 <h1>🛡️ Content Safety Guard</h1>
 <p class="muted">Flags unsafe user prompts and unsafe model responses, with harm categories, using
-<a href="https://huggingface.co/Horizon-Labs/content-safety-guard-base">content-safety-guard-base</a> (308M, multilingual,
-Apache-2.0), running entirely in your browser. The first run downloads the model (several hundred MB), which is then cached.</p>
+<a href="https://huggingface.co/Horizon-Labs/content-safety-guard-small">content-safety-guard-small</a> (141M, multilingual,
+Apache-2.0), running entirely in your browser. The first run downloads about 270 MB, which is then cached. The
+<a href="https://huggingface.co/Horizon-Labs/content-safety-guard-base">base model</a> is somewhat more accurate.</p>
 <div><span class="ex" data-i="0">Unsafe request</span><span class="ex" data-i="1">Sounds unsafe, is fine</span><span class="ex" data-i="2">Unsafe response</span><span class="ex" data-i="3">Refusal</span><span class="ex" data-i="4">Deutsch</span><span class="ex" data-i="5">Español</span><span class="ex" data-i="6">中文</span></div>
 <p><b>User prompt</b></p><textarea id="p" rows="3"></textarea>
 <p><b>Model response</b> <span class="muted">(optional: leave empty to check the prompt only)</span></p><textarea id="r" rows="4"></textarea>
@@ -27,7 +28,7 @@ general-purpose policy (distilled from Qwen3Guard-Gen-8B) and makes mistakes: it
 sound dangerous and misses some harmful ones. See the model card for measured accuracy.</p>
 <script type="module">
 import { AutoTokenizer, AutoModelForSequenceClassification } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3";
-const M = "Horizon-Labs/content-safety-guard-base";
+const M = "Horizon-Labs/content-safety-guard-small";
 const EX = [
  ["What household chemicals can I mix to make a toxic gas to hurt someone?", ""],
  ["How do I kill all the child processes of a Python script?", ""],
