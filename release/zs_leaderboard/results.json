@@ -1,0 +1,253 @@
+{
+ "sets": [
+  [
+   "MASSIVE",
+   "intents, 16 langs"
+  ],
+  [
+   "MTOP",
+   "intents, 6 langs"
+  ],
+  [
+   "Banking77",
+   "intents, en"
+  ],
+  [
+   "CLINC150 \u00a7",
+   "intents, en"
+  ],
+  [
+   "SIB-200 \u00a7",
+   "topics, 16 langs"
+  ],
+  [
+   "AG News \u00a7",
+   "topics, en"
+  ],
+  [
+   "Yahoo \u00a7",
+   "topics, en"
+  ],
+  [
+   "Emotion \u00a7",
+   "en"
+  ],
+  [
+   "SST-2 \u00a7",
+   "sentiment, en"
+  ],
+  [
+   "MASSIVE native",
+   "labels in the text's language, 15 langs"
+  ],
+  [
+   "SIB-200 native",
+   "15 langs"
+  ],
+  [
+   "XNLI \u2020",
+   "balanced acc., 12 langs"
+  ]
+ ],
+ "rows": [
+  {
+   "model": "Horizon-Labs/multilingual-zeroshot-small",
+   "size": "141M",
+   "commercial_data": "yes",
+   "MASSIVE": 0.41833333333333333,
+   "MTOP": 0.35,
+   "Banking77": 0.543,
+   "CLINC150 \u00a7": 0.596,
+   "SIB-200 \u00a7": 0.796875,
+   "AG News \u00a7": 0.832,
+   "Yahoo \u00a7": 0.626,
+   "Emotion \u00a7": 0.413,
+   "SST-2 \u00a7": 0.8405963302752294,
+   "XNLI \u2020": 0.7576164651641044,
+   "MASSIVE native": 0.4231111111111111,
+   "SIB-200 native": 0.7607843137254902,
+   "intent macro": 0.47683333333333333
+  },
+  {
+   "model": "Horizon-Labs/multilingual-zeroshot-base",
+   "size": "308M",
+   "commercial_data": "yes",
+   "MASSIVE": 0.5047916666666666,
+   "MTOP": 0.42,
+   "Banking77": 0.568,
+   "CLINC150 \u00a7": 0.672,
+   "SIB-200 \u00a7": 0.8256740196078431,
+   "AG News \u00a7": 0.839,
+   "Yahoo \u00a7": 0.649,
+   "Emotion \u00a7": 0.488,
+   "SST-2 \u00a7": 0.8910550458715596,
+   "XNLI \u2020": 0.7982123903345109,
+   "MASSIVE native": 0.4935555555555556,
+   "SIB-200 native": 0.8091503267973856,
+   "intent macro": 0.5411979166666667
+  },
+  {
+   "model": "Horizon-Labs/multilingual-zeroshot-large",
+   "size": "568M",
+   "commercial_data": "yes",
+   "MASSIVE": 0.5347916666666667,
+   "MTOP": 0.42388888888888887,
+   "Banking77": 0.623,
+   "CLINC150 \u00a7": 0.68,
+   "SIB-200 \u00a7": 0.8336397058823529,
+   "AG News \u00a7": 0.814,
+   "Yahoo \u00a7": 0.658,
+   "Emotion \u00a7": 0.511,
+   "SST-2 \u00a7": 0.8795871559633027,
+   "XNLI \u2020": 0.799957916645936,
+   "MASSIVE native": 0.5222222222222223,
+   "SIB-200 native": 0.8307189542483661,
+   "intent macro": 0.5654201388888889
+  },
+  {
+   "model": "MoritzLaurer/bge-m3-zeroshot-v2.0",
+   "size": "568M",
+   "commercial_data": "no (partly NC)",
+   "MASSIVE": 0.6110416666666667,
+   "MTOP": 0.44166666666666665,
+   "Banking77": 0.695,
+   "CLINC150 \u00a7": 0.661,
+   "SIB-200 \u00a7": 0.836703431372549,
+   "AG News \u00a7": 0.886,
+   "Yahoo \u00a7": 0.654,
+   "Emotion \u00a7": 0.677,
+   "SST-2 \u00a7": 0.9048165137614679,
+   "XNLI \u2020": 0.8177096290031013,
+   "MASSIVE native": 0.56,
+   "SIB-200 native": 0.8062091503267974,
+   "intent macro": 0.6021770833333333
+  },
+  {
+   "model": "MoritzLaurer/bge-m3-zeroshot-v2.0-c",
+   "size": "568M",
+   "commercial_data": "yes",
+   "MASSIVE": 0.41125,
+   "MTOP": 0.30333333333333334,
+   "Banking77": 0.43,
+   "CLINC150 \u00a7": 0.597,
+   "SIB-200 \u00a7": 0.7815563725490197,
+   "AG News \u00a7": 0.726,
+   "Yahoo \u00a7": 0.564,
+   "Emotion \u00a7": 0.476,
+   "SST-2 \u00a7": 0.8646788990825688,
+   "XNLI \u2020": 0.8248575799791034,
+   "MASSIVE native": 0.42311111111111105,
+   "SIB-200 native": 0.7411764705882352,
+   "intent macro": 0.4353958333333333
+  },
+  {
+   "model": "MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7",
+   "size": "278M",
+   "commercial_data": "no (XNLI/ANLI NC)",
+   "MASSIVE": 0.35125,
+   "MTOP": 0.35333333333333333,
+   "Banking77": 0.287,
+   "CLINC150 \u00a7": 0.484,
+   "SIB-200 \u00a7": 0.6541053921568627,
+   "AG News \u00a7": 0.67,
+   "Yahoo \u00a7": 0.497,
+   "Emotion \u00a7": 0.483,
+   "SST-2 \u00a7": 0.8440366972477065,
+   "XNLI \u2020": 0.8449290594888634,
+   "MASSIVE native": 0.3442222222222222,
+   "SIB-200 native": 0.6473856209150328,
+   "intent macro": 0.3688958333333333
+  },
+  {
+   "model": "joeddav/xlm-roberta-large-xnli",
+   "size": "560M",
+   "commercial_data": "no (XNLI NC)",
+   "MASSIVE": 0.4041666666666667,
+   "MTOP": 0.3861111111111111,
+   "Banking77": 0.166,
+   "CLINC150 \u00a7": 0.623,
+   "SIB-200 \u00a7": 0.5260416666666666,
+   "AG News \u00a7": 0.591,
+   "Yahoo \u00a7": 0.529,
+   "Emotion \u00a7": 0.345,
+   "SST-2 \u00a7": 0.819954128440367,
+   "XNLI \u2020": 0.9918041113156542,
+   "MASSIVE native": null,
+   "SIB-200 native": null,
+   "intent macro": 0.3948194444444445
+  },
+  {
+   "model": "facebook/bart-large-mnli",
+   "size": "407M",
+   "commercial_data": "yes",
+   "MASSIVE": 0.16520833333333335,
+   "MTOP": 0.19777777777777777,
+   "Banking77": 0.48,
+   "CLINC150 \u00a7": 0.679,
+   "SIB-200 \u00a7": 0.4417892156862745,
+   "AG News \u00a7": 0.684,
+   "Yahoo \u00a7": 0.586,
+   "Emotion \u00a7": 0.463,
+   "SST-2 \u00a7": 0.9220183486238532,
+   "XNLI \u2020": 0.6599965587010962,
+   "MASSIVE native": null,
+   "SIB-200 native": null,
+   "intent macro": 0.38049652777777776
+  },
+  {
+   "model": "MoritzLaurer/deberta-v3-base-zeroshot-v2.0",
+   "size": "184M",
+   "commercial_data": "no (partly NC)",
+   "MASSIVE": 0.36583333333333334,
+   "MTOP": 0.30666666666666664,
+   "Banking77": 0.714,
+   "CLINC150 \u00a7": 0.615,
+   "SIB-200 \u00a7": 0.6020220588235294,
+   "AG News \u00a7": 0.884,
+   "Yahoo \u00a7": 0.672,
+   "Emotion \u00a7": 0.737,
+   "SST-2 \u00a7": 0.9472477064220184,
+   "XNLI \u2020": 0.708472229132461,
+   "MASSIVE native": null,
+   "SIB-200 native": null,
+   "intent macro": 0.500375
+  },
+  {
+   "model": "MoritzLaurer/deberta-v3-large-zeroshot-v2.0",
+   "size": "435M",
+   "commercial_data": "no (partly NC)",
+   "MASSIVE": 0.5370833333333334,
+   "MTOP": null,
+   "Banking77": 0.722,
+   "CLINC150 \u00a7": null,
+   "SIB-200 \u00a7": 0.7377450980392157,
+   "AG News \u00a7": 0.891,
+   "Yahoo \u00a7": 0.693,
+   "Emotion \u00a7": 0.691,
+   "SST-2 \u00a7": 0.948394495412844,
+   "XNLI \u2020": 0.726720442144717,
+   "MASSIVE native": null,
+   "SIB-200 native": null,
+   "intent macro": null
+  },
+  {
+   "model": "MoritzLaurer/ModernBERT-base-zeroshot-v2.0",
+   "size": "149M",
+   "commercial_data": "no (partly NC)",
+   "MASSIVE": 0.19020833333333334,
+   "MTOP": null,
+   "Banking77": 0.725,
+   "CLINC150 \u00a7": null,
+   "SIB-200 \u00a7": 0.42769607843137253,
+   "AG News \u00a7": 0.879,
+   "Yahoo \u00a7": 0.642,
+   "Emotion \u00a7": 0.754,
+   "SST-2 \u00a7": 0.9243119266055045,
+   "XNLI \u2020": 0.6219608769922218,
+   "MASSIVE native": null,
+   "SIB-200 native": null,
+   "intent macro": null
+  }
+ ],
+ "snapshot": "2026-09-27"
+}

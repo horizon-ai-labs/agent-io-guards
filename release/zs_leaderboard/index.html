@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Multilingual Zero-Shot Classification Leaderboard</title>
+<style>
+:root{--bg:#fafafa;--fg:#1a1a1a;--muted:#666;--card:#fff;--border:#ddd;--hi:#d3f9d8}
+@media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--muted:#aaa;--card:#1b1b1b;--border:#333;--hi:#1b3a24}}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);max-width:1350px;margin:2rem auto;padding:0 1rem;line-height:1.5}
+table{border-collapse:collapse;width:100%;font-size:13px;background:var(--card)} th,td{border:1px solid var(--border);padding:4px 6px;text-align:right}
+th{cursor:pointer;position:sticky;top:0;background:var(--card)} td:nth-child(-n+3),th:nth-child(-n+3){text-align:left}
+td.best{background:var(--hi);font-weight:600} .g{font-size:11px;color:var(--muted);display:block} .muted{color:var(--muted)} .wrap{overflow-x:auto}
+</style></head><body>
+<h1>🏷️ Multilingual Zero-Shot Classification Leaderboard</h1>
+<p>Open NLI-based zero-shot classifiers (the transformers <code>zero-shot-classification</code> pipeline: the label with the
+highest entailment score wins), all evaluated with <b>the same script, templates and labels</b>. Hypotheses and labels are in
+English for every language, except the two "native" columns, where the label set and template were translated into the text's
+language. Accuracy unless noted. Click a column to sort; the best value per column is highlighted.</p>
+<p class="muted"><b>Disclosure:</b> this page is maintained by Horizon Labs, which makes the three multilingual-zeroshot models.
+§ = label names that occur in Horizon Labs' synthetic training data (generic topic, emotion and sentiment taxonomies; for
+CLINC150, 31 of 150 intent names), so those columns are not zero-shot for our models; "intent macro" averages MASSIVE, MTOP,
+Banking77 and CLINC150. We do not know which label sets other models saw in training. † XNLI is included for reference only:
+models trained on XNLI (xlm-roberta-large-xnli, mDeBERTa-xnli) score very high on it. "Commercial data" says whether a model's
+training data allows commercial use (several strong models are MIT-licensed but trained partly on non-commercial data).
+English-only models are included for comparison on the English columns. "–" = not evaluated. Eval code:
+<code>code/zeroshot/evaluate_zs.py</code>, <code>build_evals.py</code>, <code>build_evals2.py</code> in
+<a href="https://huggingface.co/Horizon-Labs/multilingual-zeroshot-base/tree/main/code">the model repo</a>. Want a model added or
+found a problem? Open a discussion on this Space.</p>
+<div class="wrap"><table id="t"></table></div>
+<p class="muted" id="snap"></p>
+<script>
+fetch("results.json").then(r=>r.json()).then(d=>{
+  document.getElementById("snap").textContent="Snapshot: "+d.snapshot+".";
+  const cols=["model","size","commercial_data","intent macro",...d.sets.map(s=>s[0])];
+  const grp=Object.fromEntries(d.sets.map(s=>[s[0],s[1]])); grp["commercial_data"]="training data"; grp["intent macro"]="MASSIVE, MTOP, B77, CLINC";
+  const rows=d.rows; let sortCol="intent macro",asc=false;
+  const num=v=>v==null?-1:v;
+  function render(){
+    rows.sort((a,b)=>{const x=a[sortCol],y=b[sortCol]; if(typeof x=="string"||typeof y=="string")return asc?String(x).localeCompare(String(y)):String(y).localeCompare(String(x)); return asc?num(x)-num(y):num(y)-num(x)});
+    const best={}; for(const c of cols.slice(3)){const v=rows.map(r=>r[c]).filter(x=>x!=null); best[c]=Math.max(...v)}
+    let h="<tr>"+cols.map(c=>`<th data-c="${c}">${c=="commercial_data"?"commercial data":c}${grp[c]?`<span class="g">${grp[c]}</span>`:""}</th>`).join("")+"</tr>";
+    for(const r of rows){h+="<tr>"+cols.map(c=>{const v=r[c];
+      if(c=="model")return `<td><a href="https://huggingface.co/${v}">${v}</a></td>`;
+      if(c=="size"||c=="commercial_data")return `<td>${v}</td>`; if(v==null)return "<td>–</td>";
+      return `<td class="${Math.abs(v-best[c])<1e-9?"best":""}">${v.toFixed(3)}</td>`}).join("")+"</tr>"}
+    const t=document.getElementById("t"); t.innerHTML=h;
+    t.querySelectorAll("th").forEach(th=>th.onclick=()=>{const c=th.dataset.c; asc=(c==sortCol)?!asc:(c=="model"||c=="size"||c=="commercial_data"); sortCol=c; render()});
+  }
+  render();
+});
+</script></body></html>
