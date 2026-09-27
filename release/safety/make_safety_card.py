@@ -7,7 +7,7 @@ size, rd, out = sys.argv[1:4]
 SIZES = {"small": ("jhu-clsp/mmBERT-small", "141M"), "base": ("jhu-clsp/mmBERT-base", "308M")}
 base_model, params = SIZES[size]
 REPO = f"Horizon-Labs/content-safety-guard-{size}"
-VERSION = os.environ.get("VERSION", "v1.0")
+VERSION = os.environ.get("VERSION", "v1.1")
 me = list(json.load(open(f"release/evals/safety_{size}.json")).values())[0]
 bl = json.load(open("release/evals/safety_baselines.json"))
 thr = json.load(open(f"{rd}/thresholds.json"))
@@ -72,6 +72,20 @@ _ql = bl["qwen3guard:Qwen/Qwen3Guard-Gen-0.6B_loose"]
 AHEAD = [n.split(" (")[0].split(",")[0] for n, k, m in ROWS if m == "f1" and me[k]["f1"] > _q[k]["f1"]]
 BEHIND = [n.split(" (")[0].split(",")[0] for n, k, m in ROWS if me[k][m] < _q[k][m] and me[k][m] < _ql[k][m]]
 
+_vfiles = sorted(f for f in os.listdir("release/evals") if f.startswith(f"safety_{size}_v") and f.endswith(".json"))
+_vers = {f[len(f"safety_{size}_"):-5]: list(json.load(open(f"release/evals/{f}")).values())[0] for f in _vfiles}
+_vers = {v: e for v, e in _vers.items() if v < VERSION}
+VERSION_SECTION = ""
+if _vers:
+    _vc = {**_vers, f"**{VERSION} (this version)**": me}
+    _vr = [(n, k, m) for n, k, m in ROWS] + [("XSTest: safe prompts flagged (lower is better)", "xstest", "fpr")]
+    _lines = ["| | " + " | ".join(_vc) + " |", "|---|" + "---|" * len(_vc)]
+    for n, k, m in _vr:
+        _lines.append(f"| {n} | " + " | ".join("%.3f" % e[k][m] for e in _vc.values()) + " |")
+    VERSION_SECTION = ("## Versions\n\nv1.1 adds machine-translated toxic comments and red-team prompts in 20 languages: multilingual toxicity "
+                       "(textdetox) and native-speaker red-teaming (Aya) improve clearly; the other rows move by 0.01 or less. "
+                       f"To pin an earlier model, load it with " + " or ".join(f'`revision="{v}"`' for v in _vers) + ".\n\n" + "\n".join(_lines) + "\n\n")
+
 card = f"""---
 license: apache-2.0
 language:
@@ -93,6 +107,13 @@ language:
 - pl
 - cs
 - sv
+- uk
+- tr
+- he
+- sr
+- tl
+- am
+- tt
 library_name: transformers
 pipeline_tag: text-classification
 base_model: {base_model}
@@ -135,7 +156,8 @@ that you can run on CPU or in the browser in front of, or behind, any LLM.
 
 - **Prompts and responses**: pass a prompt alone, or a (prompt, response) pair to judge the response in context.
 - **Output**: an overall `unsafe` score plus 15 category scores (independent sigmoids): {", ".join(f"`{c}`" for c in CATS)}.
-- **Multilingual**: trained on 12 languages plus multilingual real-world prompts; evaluated on 17 languages.
+- **Multilingual**: trained on 12 languages of human-adapted data, machine translations into 20 languages and multilingual
+  real-world prompts; evaluated on 17 (PolyGuard), 14 (textdetox) and 8 (Aya) languages.
 - **Commercially usable**: Apache-2.0, trained only on data that allows commercial use (see Training data).
 - {onnx_line}
 
@@ -228,6 +250,11 @@ the unsafe items of its test split, with thresholds chosen on its validation spl
   - [Civil Comments](https://huggingface.co/datasets/google/civil_comments) (CC0): 60k comments with toxicity >= 0.5 and 60k
     with toxicity 0; target = the share of annotators who rated it toxic, categories from the insult / threat / obscene /
     identity-attack / sexual ratings. This improved the OpenAI moderation set (F1 +0.035) but not the textdetox recall.
+  - (v1.1) Machine translations by Qwen3.8-27B (Apache-2.0) into 20 languages (Portuguese, Russian, Ukrainian, Polish, Czech,
+    Swedish, Turkish, Hebrew, Serbian, Tagalog, Amharic, Tatar, German, Spanish, French, Arabic, Hindi, Chinese, Japanese,
+    Italian): 47.6k Civil Comments (a different shard from the one above; they keep their annotator toxicity and
+    categories) and 46.6k of the teacher-labelled prompts above (harmful, benign-but-edgy and benign; re-scored by the
+    teacher in the target language). 1.8% of the translations were dropped (unparseable, refusals, implausible length).
   - Items that match any benchmark text were removed.
 - **Teacher**: [Qwen3Guard-Gen-8B](https://huggingface.co/Qwen/Qwen3Guard-Gen-8B) (Apache-2.0). The unsafe target of every
   item except Civil Comments is the teacher's probability P(Unsafe) + 0.5 · P(Controversial); categories use the human labels. So the model
@@ -235,7 +262,7 @@ the unsafe items of its test split, with thresholds chosen on its validation spl
 - **Model**: {base_model} with a 16-way sigmoid head (unsafe + 15 categories), 2 epochs, max length 1024 tokens.
 - Code: `code/` in this repository.
 
-## Limitations
+{VERSION_SECTION}## Limitations
 
 - It trails Qwen3Guard-Gen-0.6B (a generative 0.6B model that reads a long policy prompt per item) in both of its modes on
   {", ".join(BEHIND)} ({GAP[0]:.3f}-{GAP[1]:.3f} F1 behind its strict mode on PolyGuard responses / prompts); it is ahead of the
