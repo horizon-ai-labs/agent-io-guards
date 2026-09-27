@@ -178,6 +178,7 @@ that you can run on CPU or in the browser in front of, or behind, any LLM.
 
 {SIZE_NOTE}Part of the Horizon Labs guard family: [prompt-injection-guard](https://huggingface.co/Horizon-Labs/prompt-injection-guard-base),
 [pii-redactor](https://huggingface.co/Horizon-Labs/pii-redactor-base), [hallucination-guard](https://huggingface.co/Horizon-Labs/hallucination-guard-base).
+Full comparison table (sortable, with false-alarm rates): [content safety classifier leaderboard](https://huggingface.co/spaces/Horizon-Labs/content-safety-leaderboard).
 
 ## Usage
 
