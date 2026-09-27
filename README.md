@@ -12,7 +12,9 @@ All models are Apache-2.0, multilingual (mmBERT backbones) and ship ONNX / trans
 | Multilingual Zero-Shot Classifier (small 141M, base 308M, large 568M) | classify text in 30+ languages into any labels (NLI, `zero-shot-classification` pipeline) | [small](https://huggingface.co/Horizon-Labs/multilingual-zeroshot-small) · [base](https://huggingface.co/Horizon-Labs/multilingual-zeroshot-base) · [large](https://huggingface.co/Horizon-Labs/multilingual-zeroshot-large) |
 
 Related: [prompt-injection eval suite](https://huggingface.co/datasets/Horizon-Labs/prompt-injection-eval-suite) ·
-[detector leaderboard](https://huggingface.co/spaces/Horizon-Labs/prompt-injection-leaderboard) ·
+[injection leaderboard](https://huggingface.co/spaces/Horizon-Labs/prompt-injection-leaderboard) ·
+[content safety leaderboard](https://huggingface.co/spaces/Horizon-Labs/content-safety-leaderboard) ·
+[zero-shot leaderboard](https://huggingface.co/spaces/Horizon-Labs/multilingual-zeroshot-leaderboard) ·
 browser demos for [injection](https://huggingface.co/spaces/Horizon-Labs/prompt-injection-guard), [PII](https://huggingface.co/spaces/Horizon-Labs/pii-redactor),
 [groundedness](https://huggingface.co/spaces/Horizon-Labs/hallucination-guard), [content safety](https://huggingface.co/spaces/Horizon-Labs/content-safety-guard) and [zero-shot classification](https://huggingface.co/spaces/Horizon-Labs/multilingual-zeroshot).
 

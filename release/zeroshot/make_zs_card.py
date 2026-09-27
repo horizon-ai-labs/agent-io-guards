@@ -208,6 +208,8 @@ to a `text-classification` pipeline.
 
 ## Evaluation
 
+Sortable comparison with more models: [multilingual zero-shot classification leaderboard](https://huggingface.co/spaces/Horizon-Labs/multilingual-zeroshot-leaderboard).
+
 Accuracy, single-label (`multi_label=False`: the label with the highest entailment score wins). English templates and
 labels for every language; the same template for every model (e.g. "This text is about {{}}." for SIB-200). No model saw
 these datasets' training splits, except where marked. ‡ = trained partly on data with non-commercial licenses (their
