@@ -13,8 +13,9 @@ tok = AutoTokenizer.from_pretrained(d)
 texts = []
 for p in sorted(glob.glob(f"{ev}/*.parquet")):
     df = pd.read_parquet(p)
-    texts += df.sample(min(len(df), 30), random_state=0).text.str[:3000].tolist()
-texts = texts[:400]
+    texts += df.sample(min(len(df), int(os.environ.get("QN", 30))), random_state=0).text.str[:3000].tolist()
+texts = texts[:int(os.environ.get("QMAX", 400))]
+MC = bool(os.environ.get("MULTICLASS"))   # language identifier: compare the argmax label instead of a 0.5 threshold
 so = ort.SessionOptions(); so.intra_op_num_threads = 8
 
 
@@ -26,6 +27,8 @@ def probs(path):
         e = tok(x, truncation=True, max_length=1024, return_tensors="np")
         lo = s.run(None, {"input_ids": e["input_ids"], "attention_mask": e["attention_mask"]})[0][0]
         # MULTILABEL=1 (content-safety guard): score = sigmoid of logit 0 ("unsafe"); else 2-class softmax P(label 1)
+        if MC:
+            out.append(float(np.argmax(lo))); continue
         out.append(1 / (1 + np.exp(-lo[0])) if os.environ.get("MULTILABEL") else 1 / (1 + np.exp(lo[0] - lo[1])))
     return np.array(out), (time.time() - t) / len(texts)
 
@@ -52,7 +55,7 @@ for name, kw in configs.items():
     except Exception as e:
         print(name, "failed", e, flush=True); continue
     r = dict(max_diff=float(np.abs(p - ref).max()), mean_diff=float(np.abs(p - ref).mean()),
-             agree=float(((p > 0.5) == (ref > 0.5)).mean()), ms=t * 1000, mb=os.path.getsize(out) / 1e6)
+             agree=float((p == ref).mean() if MC else ((p > 0.5) == (ref > 0.5)).mean()), ms=t * 1000, mb=os.path.getsize(out) / 1e6)
     res[name] = r
     print(name, r, flush=True)
     if best is None or r["mean_diff"] < res[best]["mean_diff"]:
@@ -70,7 +73,7 @@ try:
         q.model.save_model_to_file(out, use_external_data_format=False)
         p, t = probs(out)
         r = dict(max_diff=float(np.abs(p - ref).max()), mean_diff=float(np.abs(p - ref).mean()),
-                 agree=float(((p > 0.5) == (ref > 0.5)).mean()), ms=t * 1000, mb=os.path.getsize(out) / 1e6)
+                 agree=float((p == ref).mean() if MC else ((p > 0.5) == (ref > 0.5)).mean()), ms=t * 1000, mb=os.path.getsize(out) / 1e6)
         res[bits_name] = r; print(bits_name, r, flush=True)
         # GATHER_ONLY=1: never pick the q4 variant (rejected for hallucination-guard-small: mean |p diff| .033)
         if r["agree"] >= 0.995 and r["mb"] < res[best]["mb"] and not os.environ.get("GATHER_ONLY"):
@@ -83,7 +86,7 @@ try:
     m16 = float16.convert_float_to_float16(onnx.load(f"{d}/onnx/model.onnx"), keep_io_types=True)
     onnx.save(m16, f"{d}/onnx/model_fp16.onnx")
     p, t = probs(f"{d}/onnx/model_fp16.onnx")
-    res["fp16"] = dict(max_diff=float(np.abs(p - ref).max()), agree=float(((p > 0.5) == (ref > 0.5)).mean()),
+    res["fp16"] = dict(max_diff=float(np.abs(p - ref).max()), agree=float((p == ref).mean() if MC else ((p > 0.5) == (ref > 0.5)).mean()),
                        ms=t * 1000, mb=os.path.getsize(f"{d}/onnx/model_fp16.onnx") / 1e6)
     print("fp16", res["fp16"], flush=True)
     if res["fp16"]["agree"] < 0.995:
