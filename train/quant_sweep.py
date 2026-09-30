@@ -93,7 +93,7 @@ try:
         os.remove(f"{d}/onnx/model_fp16.onnx")
 except Exception as e:
     print("fp16 failed", e, flush=True)
-json.dump(dict(res, best=best), open(f"{d}/onnx_sweep.json", "w"), indent=1)
+json.dump(dict(res, best=best, n=len(texts)), open(f"{d}/onnx_sweep.json", "w"), indent=1)
 print("best", best, res.get(best), flush=True)
 MIN_AGREE = float(os.environ.get("MIN_AGREE", 0.995))   # decision agreement with fp32 needed to ship model_quantized.onnx
 if best and res[best]["agree"] >= MIN_AGREE:

@@ -10,6 +10,7 @@ All models are Apache-2.0, multilingual (mmBERT backbones) and ship ONNX / trans
 | Hallucination Guard (small 141M, base 308M) | groundedness: is a response supported by its source? (multilingual) | [small](https://huggingface.co/Horizon-Labs/hallucination-guard-small) · [base](https://huggingface.co/Horizon-Labs/hallucination-guard-base) |
 | Content Safety Guard (small 141M, base 308M) | unsafe prompts and LLM responses, 15 harm categories (multilingual; distilled from Qwen3Guard-Gen-8B) | [small](https://huggingface.co/Horizon-Labs/content-safety-guard-small) · [base](https://huggingface.co/Horizon-Labs/content-safety-guard-base) |
 | Language Detection (small 141M) | language identification for 183 languages, robust on short strings | [small](https://huggingface.co/Horizon-Labs/language-detection-small) |
+| Multilingual Sentiment (small 141M, base 308M) | negative / neutral / positive in many languages (distilled from Qwen3.8-27B) | [small](https://huggingface.co/Horizon-Labs/multilingual-sentiment-small) · [base](https://huggingface.co/Horizon-Labs/multilingual-sentiment-base) |
 | Multilingual Zero-Shot Classifier (small 141M, base 308M, large 568M) | classify text in 30+ languages into any labels (NLI, `zero-shot-classification` pipeline) | [small](https://huggingface.co/Horizon-Labs/multilingual-zeroshot-small) · [base](https://huggingface.co/Horizon-Labs/multilingual-zeroshot-base) · [large](https://huggingface.co/Horizon-Labs/multilingual-zeroshot-large) |
 
 Related: [prompt-injection eval suite](https://huggingface.co/datasets/Horizon-Labs/prompt-injection-eval-suite) ·
@@ -17,7 +18,8 @@ Related: [prompt-injection eval suite](https://huggingface.co/datasets/Horizon-L
 [content safety leaderboard](https://huggingface.co/spaces/Horizon-Labs/content-safety-leaderboard) ·
 [zero-shot leaderboard](https://huggingface.co/spaces/Horizon-Labs/multilingual-zeroshot-leaderboard) ·
 browser demos for [injection](https://huggingface.co/spaces/Horizon-Labs/prompt-injection-guard), [PII](https://huggingface.co/spaces/Horizon-Labs/pii-redactor),
-[groundedness](https://huggingface.co/spaces/Horizon-Labs/hallucination-guard), [content safety](https://huggingface.co/spaces/Horizon-Labs/content-safety-guard) and [zero-shot classification](https://huggingface.co/spaces/Horizon-Labs/multilingual-zeroshot).
+[groundedness](https://huggingface.co/spaces/Horizon-Labs/hallucination-guard), [content safety](https://huggingface.co/spaces/Horizon-Labs/content-safety-guard), [zero-shot classification](https://huggingface.co/spaces/Horizon-Labs/multilingual-zeroshot),
+[language detection](https://huggingface.co/spaces/Horizon-Labs/language-detection) and [sentiment](https://huggingface.co/spaces/Horizon-Labs/multilingual-sentiment).
 
 ## Layout
 
@@ -36,6 +38,8 @@ browser demos for [injection](https://huggingface.co/spaces/Horizon-Labs/prompt-
   XSTest, SimpleSafetyTests, Aya red-teaming and textdetox.
 - `lid/`: language identification data (FineWeb-2, cleaning filters, short spans, label merges), training and FLORES-200
   evaluation against GlotLID, fastText LID and papluca.
+- `sentiment/`: sentiment evaluation sets (tweets, Amazon reviews, MTEB; evaluation only), FineWeb-2 snippet pool,
+  Qwen3.8-27B synthetic texts and soft labels, soft-label training and baseline evaluation.
 - `release/`: model card generators, release packaging, and helpers shipped with the models (`redact.py`,
   `llm_guard_conf.py`).
 
