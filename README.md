@@ -12,6 +12,7 @@ All models are Apache-2.0, multilingual (mmBERT backbones) and ship ONNX / trans
 | Language Detection (small 141M) | language identification for 183 languages, robust on short strings | [small](https://huggingface.co/Horizon-Labs/language-detection-small) |
 | Multilingual Sentiment (small 141M, base 308M) | negative / neutral / positive in many languages (distilled from Qwen3.8-27B) | [small](https://huggingface.co/Horizon-Labs/multilingual-sentiment-small) · [base](https://huggingface.co/Horizon-Labs/multilingual-sentiment-base) |
 | Multilingual Emotions (small 141M, base 308M) | the 28 GoEmotions labels in 36 languages (go_emotions + Qwen translations) | [small](https://huggingface.co/Horizon-Labs/multilingual-emotions-small) · [base](https://huggingface.co/Horizon-Labs/multilingual-emotions-base) |
+| Multilingual Reranker (small 141M) | cross-encoder reranker for search/RAG in 40+ languages (distilled from Qwen3-Reranker-4B) | [small](https://huggingface.co/Horizon-Labs/multilingual-reranker-small) |
 | Multilingual Zero-Shot Classifier (small 141M, base 308M, large 568M) | classify text in 30+ languages into any labels (NLI, `zero-shot-classification` pipeline) | [small](https://huggingface.co/Horizon-Labs/multilingual-zeroshot-small) · [base](https://huggingface.co/Horizon-Labs/multilingual-zeroshot-base) · [large](https://huggingface.co/Horizon-Labs/multilingual-zeroshot-large) |
 
 Related: [prompt-injection eval suite](https://huggingface.co/datasets/Horizon-Labs/prompt-injection-eval-suite) ·
@@ -21,7 +22,7 @@ Related: [prompt-injection eval suite](https://huggingface.co/datasets/Horizon-L
 browser demos for [injection](https://huggingface.co/spaces/Horizon-Labs/prompt-injection-guard), [PII](https://huggingface.co/spaces/Horizon-Labs/pii-redactor),
 [groundedness](https://huggingface.co/spaces/Horizon-Labs/hallucination-guard), [content safety](https://huggingface.co/spaces/Horizon-Labs/content-safety-guard), [zero-shot classification](https://huggingface.co/spaces/Horizon-Labs/multilingual-zeroshot),
 [language detection](https://huggingface.co/spaces/Horizon-Labs/language-detection), [sentiment](https://huggingface.co/spaces/Horizon-Labs/multilingual-sentiment)
-and [emotions](https://huggingface.co/spaces/Horizon-Labs/multilingual-emotions).
+[emotions](https://huggingface.co/spaces/Horizon-Labs/multilingual-emotions) and [reranking](https://huggingface.co/spaces/Horizon-Labs/multilingual-reranker).
 
 ## Layout
 
@@ -44,6 +45,9 @@ and [emotions](https://huggingface.co/spaces/Horizon-Labs/multilingual-emotions)
   Qwen3.8-27B synthetic texts and soft labels, soft-label training and baseline evaluation.
 - `emotion/`: GoEmotions translation with Qwen3.8-27B, multi-label training, and evaluation on GoEmotions and BRIGHTER
   (28 languages, Ekman grouping, dev-tuned thresholds) against other emotion models.
+- `rerank/`: reranker data (FineWeb-2 passages, Qwen-written queries, bge-m3 hard negatives, Qwen3-Reranker-4B scores via
+  vLLM), listwise distillation, and MTEB reranking evaluation (MIRACL, Wikipedia, ESCI, RuBQ, T2, mMARCO, AskUbuntu).
+- `emb/`: embedding distillation into bge-m3's vector space (work in progress).
 - `release/`: model card generators, release packaging, and helpers shipped with the models (`redact.py`,
   `llm_guard_conf.py`).
 
