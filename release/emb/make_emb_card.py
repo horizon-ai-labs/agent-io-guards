@@ -6,9 +6,9 @@ size, rd, ours_f, other_f, bl_f, seeds, ntexts, out = sys.argv[1:9]
 other = "base" if size == "small" else "small"
 REPO, OTHER = f"Horizon-Labs/multilingual-embedding-{size}", f"Horizon-Labs/multilingual-embedding-{other}"
 PARAMS = {"small": "141M", "base": "308M"}
-ours = json.load(open(ours_f)); oth = json.load(open(other_f)); bl = json.load(open(bl_f))
+ours = json.load(open(ours_f)); oth = json.load(open(other_f)) if other_f != "-" else None; bl = json.load(open(bl_f))
 sym = next(v for k, v in ours.items() if k.startswith("ours:")); asym = next(v for k, v in ours.items() if k.startswith("asym:"))
-osym = next(v for k, v in oth.items() if k.startswith("ours:"))
+osym = next(v for k, v in oth.items() if k.startswith("ours:")) if oth else None
 qs = json.load(open(f"{rd}/onnx_sweep.json")) if os.path.exists(f"{rd}/onnx_sweep.json") else {}
 f3 = lambda x: f"{x:.3f}"
 BL = [("cls:BAAI/bge-m3", "568M", "MIT", "the teacher"), ("e5:intfloat/multilingual-e5-small", "118M", "MIT", ""),
@@ -18,11 +18,11 @@ link = lambda m: f"[{m.split(':')[-1]}](https://huggingface.co/{m.split(':')[-1]
 row = lambda name, p, r, note: f"| {name} ({p}) | {f3(r['_miracl'])} | {f3(r['_wiki'])} | {f3(r['_other'])} | {f3(r['_all'])} | {note} |"
 rows = [row("**this model**", PARAMS[size], sym, "queries and passages embedded by this model"),
         row("**this model** → bge-m3 index", PARAMS[size], asym, "queries by this model, passages by bge-m3"),
-        row(link(OTHER), PARAMS[other], osym, "")] + [row(link(m), p, bl[m], note) for m, p, lic, note in BL if m in bl]
+        ] + ([row(link(OTHER), PARAMS[other], osym, "")] if osym else []) + [row(link(m), p, bl[m], note) for m, p, lic, note in BL if m in bl]
 main = "\n".join(["| model | MIRACL (18 languages) | Wikipedia (16 languages) | other (6 sets) | mean | note |", "|---|---|---|---|---|---|"] + rows)
 ahead = {f: [m.split("/")[-1] for m, *_ in BL if m in bl and bl[m][f] > sym[f]] for f in ["_miracl", "_wiki", "_other"]}
 gq = qs.get("gather_only", {})
-onnx = (f"`onnx/model_quantized.onnx` (int8 embeddings, {gq.get('mb', 0):.0f} MB; cosine >= {gq.get('min_cos', 0):.4f} to the fp32 model on test "
+onnx = (f"`onnx/model_quantized.onnx` (int8 embeddings, {gq.get('mb', 0):.0f} MB; cosine >= {gq.get('min_cos', 0):.5f} to the fp32 model on test "
         f"sentences) outputs the final normalised embedding as `sentence_embedding`.") if gq else ""
 
 card = f"""---
@@ -105,8 +105,7 @@ space**, so you can:
 - or **query an existing bge-m3 index** with it: embed queries with this model and keep the passages you already embedded
   with bge-m3 (see the "→ bge-m3 index" row below). That gives cheap query encoding on CPU or in the browser.
 
-{"A larger, more accurate version is available as" if size == "small" else "A smaller, faster version is available as"} {link(OTHER)}.
-Apache-2.0. ONNX files for CPU and the browser (transformers.js) are included.
+{(("A larger, more accurate version is available as " if size == "small" else "A smaller, faster version is available as ") + link(OTHER) + ". ") if osym else ""}Apache-2.0. ONNX files for CPU and the browser (transformers.js) are included.
 
 - Vectors are L2-normalised. Use cosine similarity (= dot product). No query/passage prefixes are needed.
 - {onnx}
