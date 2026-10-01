@@ -29,10 +29,14 @@ def probs(path):
         # MULTILABEL=1 (content-safety guard): score = sigmoid of logit 0 ("unsafe"); else 2-class softmax P(label 1)
         if MC:
             out.append(float(np.argmax(lo))); continue
+        # MULTILABEL=all (emotion model): all sigmoid outputs; a text agrees only if every label agrees at 0.5
+        if os.environ.get("MULTILABEL") == "all":
+            out.append(1 / (1 + np.exp(-lo))); continue
         out.append(1 / (1 + np.exp(-lo[0])) if os.environ.get("MULTILABEL") else 1 / (1 + np.exp(lo[0] - lo[1])))
     return np.array(out), (time.time() - t) / len(texts)
 
 
+agree_bin = lambda p, ref: ((p > 0.5) == (ref > 0.5)).reshape(len(p), -1).all(1).mean()
 ref, t_ref = probs(f"{d}/onnx/model.onnx")
 m = onnx.load(f"{d}/onnx/model.onnx", load_external_data=False)
 names = [n.name for n in m.graph.node]
@@ -55,7 +59,7 @@ for name, kw in configs.items():
     except Exception as e:
         print(name, "failed", e, flush=True); continue
     r = dict(max_diff=float(np.abs(p - ref).max()), mean_diff=float(np.abs(p - ref).mean()),
-             agree=float((p == ref).mean() if MC else ((p > 0.5) == (ref > 0.5)).mean()), ms=t * 1000, mb=os.path.getsize(out) / 1e6)
+             agree=float((p == ref).mean() if MC else agree_bin(p, ref)), ms=t * 1000, mb=os.path.getsize(out) / 1e6)
     res[name] = r
     print(name, r, flush=True)
     if best is None or r["mean_diff"] < res[best]["mean_diff"]:
@@ -73,7 +77,7 @@ try:
         q.model.save_model_to_file(out, use_external_data_format=False)
         p, t = probs(out)
         r = dict(max_diff=float(np.abs(p - ref).max()), mean_diff=float(np.abs(p - ref).mean()),
-                 agree=float((p == ref).mean() if MC else ((p > 0.5) == (ref > 0.5)).mean()), ms=t * 1000, mb=os.path.getsize(out) / 1e6)
+                 agree=float((p == ref).mean() if MC else agree_bin(p, ref)), ms=t * 1000, mb=os.path.getsize(out) / 1e6)
         res[bits_name] = r; print(bits_name, r, flush=True)
         # GATHER_ONLY=1: never pick the q4 variant (rejected for hallucination-guard-small: mean |p diff| .033)
         if r["agree"] >= 0.995 and r["mb"] < res[best]["mb"] and not os.environ.get("GATHER_ONLY"):
@@ -86,7 +90,7 @@ try:
     m16 = float16.convert_float_to_float16(onnx.load(f"{d}/onnx/model.onnx"), keep_io_types=True)
     onnx.save(m16, f"{d}/onnx/model_fp16.onnx")
     p, t = probs(f"{d}/onnx/model_fp16.onnx")
-    res["fp16"] = dict(max_diff=float(np.abs(p - ref).max()), agree=float((p == ref).mean() if MC else ((p > 0.5) == (ref > 0.5)).mean()),
+    res["fp16"] = dict(max_diff=float(np.abs(p - ref).max()), agree=float((p == ref).mean() if MC else agree_bin(p, ref)),
                        ms=t * 1000, mb=os.path.getsize(f"{d}/onnx/model_fp16.onnx") / 1e6)
     print("fp16", res["fp16"], flush=True)
     if res["fp16"]["agree"] < 0.995:
