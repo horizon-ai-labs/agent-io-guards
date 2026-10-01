@@ -177,6 +177,7 @@ Per set (nDCG@10):
 - **Queries**: Qwen3.8-27B (Apache-2.0) wrote a natural question and a keyword query for each passage, in the passage's
   language, plus English questions for 15% of the non-English passages (cross-lingual search).
 - **Scale**: 334,400 queries with 16 candidates each (5.35M teacher-scored pairs), sampled evenly across languages.
+- **Schedule**: {"1 epoch, learning rate 5e-5" if size == "small" else "2 epochs, learning rate 3e-5 (2 epochs were chosen over 1 by validation loss, not by the benchmarks)"}, 16 queries x 16 candidates per step, max 384 tokens per pair.
 - **Candidates**: for each query, the 15 most similar passages in the same language by [bge-m3](https://huggingface.co/BAAI/bge-m3)
   dense retrieval (hard negatives) plus the source passage.
 - **Labels**: [Qwen3-Reranker-4B](https://huggingface.co/Qwen/Qwen3-Reranker-4B) (Apache-2.0) scored every (query,

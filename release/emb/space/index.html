@@ -1,0 +1,62 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Multilingual Embedding</title>
+<style>
+:root{--bg:#fafafa;--fg:#1a1a1a;--muted:#666;--card:#fff;--border:#ddd;--accent:#5f3dc4}
+@media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--muted:#aaa;--card:#1b1b1b;--border:#333;--accent:#9775fa}}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);max-width:820px;margin:2rem auto;padding:0 1rem;line-height:1.5}
+textarea{width:100%;font:15px/1.4 system-ui,sans-serif;padding:.6rem;box-sizing:border-box;background:var(--card);color:var(--fg);border:1px solid var(--border);border-radius:8px}
+.out{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.8rem;min-height:2rem}
+.item{padding:.45rem 0;border-bottom:1px solid var(--border)} .item:last-child{border-bottom:0} .txt{font-size:14px;margin-bottom:.25rem}
+.stack{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--border)} .neg{background:#e03131} .neu{background:#adb5bd} .pos{background:#2f9e44}
+.lab{font-weight:600} .lab.negative{color:#e03131} .lab.positive{color:#2f9e44} .lab.neutral{color:var(--muted)}
+.ex{display:inline-block;margin:.2rem .3rem .2rem 0;padding:.2rem .6rem;border:1px solid var(--border);border-radius:14px;cursor:pointer;font-size:13px;background:var(--card)}
+.muted{color:var(--muted)} code{font-size:13px}
+</style></head><body>
+<h1>🧭 Multilingual Embedding</h1>
+<p class="muted">Semantic search with <a href="https://huggingface.co/Horizon-Labs/multilingual-embedding-small">multilingual-embedding-small</a>
+(141M, Apache-2.0; 1024-d vectors compatible with bge-m3), running entirely in your browser: the query and every line below are
+embedded and sorted by cosine similarity. Languages can be mixed.</p>
+<div id="ex"></div>
+<p><input id="q" style="width:100%;font:15px system-ui;padding:.5rem;box-sizing:border-box;background:var(--card);color:var(--fg);border:1px solid var(--border);border-radius:8px"/></p>
+<p><textarea id="t" rows="8" placeholder="One passage per line"></textarea></p>
+<p class="muted" id="status">Loading model…</p>
+<div class="out" id="out"></div>
+<p class="muted">Scores are cosine similarities. See the model card for measured accuracy.</p>
+<script type="module">
+import { AutoTokenizer, AutoModel } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3";
+const M = "Horizon-Labs/multilingual-embedding-small";
+const EX = [
+ ["How tall is the Eiffel Tower?", "The Eiffel Tower is 330 metres tall, about the same height as an 81-storey building.\nLa tour Eiffel a été construite pour l'Exposition universelle de 1889.\nThe Statue of Liberty is 93 metres tall including its pedestal.\nDer Eiffelturm ist mit 330 Metern das höchste Bauwerk von Paris."],
+ ["¿Cuáles son los síntomas de la deshidratación?", "La deshidratación causa sed intensa, boca seca, orina oscura, cansancio y mareos.\nEl agua representa alrededor del 60 % del peso corporal de un adulto.\nDehydration symptoms include thirst, dark urine, fatigue and dizziness.\nLas bebidas deportivas contienen electrolitos y azúcar."],
+ ["电动汽车电池能用多久", "大多数电动汽车电池可以使用8到15年，之后容量会逐渐下降。\nElectric car batteries typically last 10 to 20 years before needing replacement.\n汽油车的发动机需要定期更换机油。\n充电桩的数量在过去五年里增长了十倍。"]];
+const NAMES = ["English query", "Spanish query", "Chinese query"];
+const $ = id => document.getElementById(id);
+$("ex").innerHTML = NAMES.map((e, i) => `<span class="ex" data-i="${i}">${e}</span>`).join("");
+$("q").value = EX[0][0]; $("t").value = EX[0][1];
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+let tok, model, timer;
+async function run() {
+  if (!model) return; const q = $("q").value.trim(); const ps = $("t").value.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 30);
+  if (!q || !ps.length) { $("out").innerHTML = ""; return; }
+  const t0 = performance.now();
+  const enc = await tok([q, ...ps], { padding: true, truncation: true, max_length: 512 });
+  const { sentence_embedding } = await model(enc);
+  const d = sentence_embedding.dims[1], v = sentence_embedding.data;
+  const sc = ps.map((_, i) => { let s = 0; for (let k = 0; k < d; k++) s += v[k] * v[(i + 1) * d + k]; return s; });
+  const ranked = ps.map((p, i) => [p, sc[i]]).sort((a, b) => b[1] - a[1]);
+  $("out").innerHTML = ranked.map(([p, v], k) => `<div class="item"><div style="display:flex;gap:.6rem;align-items:center"><b style="width:1.5rem">${k + 1}</b>
+    <span class="stack" style="width:8rem"><span class="pos" style="width:${(100 * v).toFixed(1)}%"></span></span><span class="muted" style="width:3rem;font-size:12px">${v.toFixed(2)}</span>
+    <span class="txt" style="flex:1;margin:0">${esc(p)}</span></div></div>`).join("");
+  $("status").textContent = `${ps.length} passages in ${(performance.now() - t0).toFixed(0)} ms (running locally)`;
+}
+$("t").oninput = $("q").oninput = () => { clearTimeout(timer); timer = setTimeout(run, 300); };
+document.querySelectorAll(".ex").forEach(el => el.onclick = () => { $("q").value = EX[+el.dataset.i][0]; $("t").value = EX[+el.dataset.i][1]; run(); });
+(async () => {
+  try {
+    tok = await AutoTokenizer.from_pretrained(M);
+    model = await AutoModel.from_pretrained(M, { dtype: "q8",
+      progress_callback: x => { if (x.status === "progress" && x.file.endsWith(".onnx")) $("status").textContent = `Downloading model… ${x.progress.toFixed(0)}%`; } });
+    run();
+  } catch (e) { $("status").textContent = "Failed to load model: " + e; }
+})();
+</script></body></html>
