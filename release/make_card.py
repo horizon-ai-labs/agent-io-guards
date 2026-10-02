@@ -127,16 +127,26 @@ RUNS = ("""- **Runs on GPU or CPU**: PyTorch and ONNX (`onnx/model.onnx` fp32 wi
   half the size and the same decisions as fp32 on our checks), transformers.js.""")
 _b = ours.get("base (308M)", {})
 WHICH = ("""
-**Which size?** Large (this model) is trained on the same data as base with a bigger backbone. Compared with base it is
-better on agent-style and indirect injection (agentic5k F1 {a1:.3f} vs {a0:.3f} with false-positive rate {f1:.2f} vs {f0:.2f};
-BIPIA F1 {b1:.3f} vs {b0:.3f}) and raises fewer false alarms on Qualifire ({q1:.2f} vs {q0:.2f}), but it is a little weaker on
-some direct jailbreak and evasion sets (Simsonsun {s1:.3f} vs {s0:.3f}, Mindgard evasion {m1:.3f} vs {m0:.3f}). Pick large for
-screening documents and tool outputs in agent pipelines if you have a GPU; base for CPU and mixed direct/indirect use.
+**Which size?** Large (this model) is trained on the v2 data with a bigger backbone. Base v2.2 is distilled from large and a
+Qwen3.8-27B judge, and now has the higher macro average. Compared with base v2.2, large is better on agent-style and indirect
+injection (agentic5k F1 {a1:.3f} vs {a0:.3f} with false-positive rate {f1:.2f} vs {f0:.2f}; BIPIA F1 {b1:.3f} vs {b0:.3f}) and raises
+fewer false alarms on Qualifire ({q1:.2f} vs {q0:.2f}), but it is weaker on direct jailbreak and evasion sets (Simsonsun {s1:.3f} vs
+{s0:.3f}, Mindgard evasion {m1:.3f} vs {m0:.3f}). Pick large for screening documents and tool outputs in agent pipelines if you
+have a GPU; base for most other uses, including CPU and direct prompts.
 """.format(a1=me["agentic5k_test"]["f1"], a0=_b["agentic5k_test"]["f1"], f1=me["agentic5k_test"]["fpr"], f0=_b["agentic5k_test"]["fpr"],
            b1=me["bipia"]["f1"], b0=_b["bipia"]["f1"], q1=me["qualifire"]["fpr"], q0=_b["qualifire"]["fpr"],
            s1=me["simsonsun_jailbreaks"]["acc"], s0=_b["simsonsun_jailbreaks"]["acc"], m1=me["mindgard_evasion"]["acc"],
            m0=_b["mindgard_evasion"]["acc"]) if LARGE and _b else "")
 LARGE_LOG = ("- **large v2.1** (2026-09-25): first release of the large size: v2 data, BAAI/bge-m3 backbone, same labels.\n" if LARGE else "")
+import os as _os
+V22 = _os.environ.get("V22") == "1"
+V22_LOG = ("- **v2.2** (2026-10-02, base only): distilled on the v2 training data from a teacher that takes the higher of two\n"
+           "  scores, our large model and a Qwen3.8-27B judge prompted with our definition of injection (soft labels, weight 0.5).\n"
+           "  Macro average over the external sets .877 -> .887 (both of two training seeds). Jailbreak recall on Simsonsun +.03,\n"
+           "  jackhhao F1 +.07, Mindgard evasion +.01 and fewer NotInject false alarms; boundary pairs F1 -.02 and deepset F1 -.02.\n"
+           "  The same recipe did not pass our gate for small, which stays at v2.1.\n") if V22 else ""
+V22_TRAIN = ("- **v2.2 (this version)**: the same data and settings, plus a distillation loss (weight 0.5) towards soft labels: the\n"
+             "  higher of the large model's score and a Qwen3.8-27B judge's P(injection) (Apache-2.0; prompt in `code/inj/teacher_inj.py`).\n") if V22 else ""
 
 card = f"""---
 license: apache-2.0
@@ -400,12 +410,12 @@ flagged content only goes to review. At 0.5 this model flags {fpr_ni:.1%} of Not
   - augmentation: character-level perturbations (homoglyphs, leetspeak, diacritics, spacing, zero-width, full-width,
     upside-down, bidi, typos) applied to attacks **and** to benign text, so odd characters alone do not signal an attack.
     Mindgard's evaluation set uses similar perturbation families, so its evasion row is not fully independent of this.
-- Deliberately **not** used: sets with non-commercial, research-only or missing licenses (for example WildJailbreak,
+{V22_TRAIN}- Deliberately **not** used: sets with non-commercial, research-only or missing licenses (for example WildJailbreak,
   safe-guard-prompt-injection, Tensor Trust). Every benchmark in the table above was excluded from training.
 
 ## Changelog
 
-{LARGE_LOG}- **v2.1** (2026-09-23): labels renamed to `SAFE` / `INJECTION` (ProtectAI / LLM Guard convention). Weights unchanged.
+{LARGE_LOG}{V22_LOG}- **v2.1** (2026-09-23): labels renamed to `SAFE` / `INJECTION` (ProtectAI / LLM Guard convention). Weights unchanged.
 - **v2** (2026-09-23): targeted synthetic data (framing pairs, planted-task documents), evasion augmentation, and the
   built-in obfuscation normalizer. Macro average over the external sets improved (small .849 → .867, base .863 → .876).
   BIPIA recall roughly doubled, and false alarms on harmless role-play prompts fell by about a third. Jailbreak recall on
