@@ -53,6 +53,10 @@ browser demos for [injection](https://huggingface.co/spaces/Horizon-Labs/prompt-
   reranking evaluation incl. querying a bge-m3 index), sentence-transformers packaging.
 - `tox/`: toxicity data (Civil Comments + Qwen translations with carried-over soft labels), multi-label training, and
   evaluation on Civil Comments and TextDetox.
+- `ner/`, `gib/`: multilingual NER (Qwen span labels) and gibberish detection experiments. Neither was released: both
+  missed their pre-set quality gates (see the code comments for the evaluation protocol).
+- `release/datasets/`: cards of the published datasets (multilingual GoEmotions, multilingual Civil Comments, reranker
+  distillation data).
 - `release/`: model card generators, release packaging, and helpers shipped with the models (`redact.py`,
   `llm_guard_conf.py`).
 

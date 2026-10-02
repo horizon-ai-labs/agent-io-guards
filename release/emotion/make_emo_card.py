@@ -91,6 +91,7 @@ pipeline_tag: text-classification
 base_model: jhu-clsp/mmBERT-{size}
 datasets:
 - google-research-datasets/go_emotions
+- Horizon-Labs/go-emotions-multilingual
 tags:
 - emotion
 - emotion-classification
@@ -190,7 +191,8 @@ and GoEmotions annotators often disagree on such labels.
 ## Training
 
 - **Data**: the GoEmotions training set (43,410 English Reddit comments with human labels; Apache-2.0), plus translations
-  of it into 35 languages made with Qwen3.8-27B (Apache-2.0). Each language gets its own random sample of 12,000 comments,
+  of it into 35 languages made with Qwen3.8-27B (Apache-2.0), published as
+  [Horizon-Labs/go-emotions-multilingual](https://huggingface.co/datasets/Horizon-Labs/go-emotions-multilingual). Each language gets its own random sample of 12,000 comments,
   and the human labels are copied to the translation ({st['n_train']:,} training examples in total). The languages are
   {", ".join(sorted(trained - {"English"}))}.
 - Translations that failed to parse, looked like refusals, had an implausible length or were copied unchanged were
