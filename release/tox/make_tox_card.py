@@ -78,6 +78,7 @@ pipeline_tag: text-classification
 base_model: jhu-clsp/mmBERT-{size}
 datasets:
 - google/civil_comments
+- Horizon-Labs/civil-comments-multilingual
 tags:
 - toxicity
 - toxic-comment-classification
@@ -167,7 +168,8 @@ Per TextDetox language (AUC):
 - **Data**: {st['n_en']:,} English comments from [Civil Comments](https://huggingface.co/datasets/google/civil_comments)
   (CC0; enriched for toxic ones), with their fractional annotator labels. Qwen3.8-27B (Apache-2.0) translated
   {st['n_translated']:,} of them into 33 languages, about 12,000 per language and half of them toxic. It was told to
-  keep insults, profanity and threats intact, and the labels are copied to each translation.
+  keep insults, profanity and threats intact, and the labels are copied to each translation (published as
+  [Horizon-Labs/civil-comments-multilingual](https://huggingface.co/datasets/Horizon-Labs/civil-comments-multilingual)).
 - **Model**: mmBERT-{size} with 7 sigmoid outputs, binary cross-entropy on the fractional labels (as in Detoxify), max
   length 256 tokens. The checkpoint was chosen by mean AUC on held-out comments and their translations.
 - Code: `code/` in this repository.

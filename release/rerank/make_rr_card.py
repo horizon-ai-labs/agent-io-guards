@@ -90,6 +90,7 @@ base_model: jhu-clsp/mmBERT-{size}
 datasets:
 - HuggingFaceFW/fineweb-2
 - HuggingFaceFW/fineweb
+- Horizon-Labs/multilingual-rerank-distill
 tags:
 - reranker
 - cross-encoder
@@ -176,7 +177,8 @@ Per set (nDCG@10):
   and [FineWeb](https://huggingface.co/datasets/HuggingFaceFW/fineweb) (ODC-BY) in 47 languages.
 - **Queries**: Qwen3.8-27B (Apache-2.0) wrote a natural question and a keyword query for each passage, in the passage's
   language, plus English questions for 15% of the non-English passages (cross-lingual search).
-- **Scale**: 334,400 queries with 16 candidates each (5.35M teacher-scored pairs), sampled evenly across languages.
+- **Scale**: 334,400 queries with 16 candidates each (5.35M teacher-scored pairs), sampled evenly across languages. The
+  data is published as [Horizon-Labs/multilingual-rerank-distill](https://huggingface.co/datasets/Horizon-Labs/multilingual-rerank-distill).
 - **Schedule**: {"1 epoch, learning rate 5e-5" if size == "small" else "2 epochs, learning rate 3e-5 (2 epochs were chosen over 1 by validation loss, not by the benchmarks)"}, 16 queries x 16 candidates per step, max 384 tokens per pair.
 - **Candidates**: for each query, the 15 most similar passages in the same language by [bge-m3](https://huggingface.co/BAAI/bge-m3)
   dense retrieval (hard negatives) plus the source passage.
