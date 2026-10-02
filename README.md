@@ -55,6 +55,7 @@ browser demos for [injection](https://huggingface.co/spaces/Horizon-Labs/prompt-
   evaluation on Civil Comments and TextDetox.
 - `ner/`, `gib/`: multilingual NER (Qwen span labels) and gibberish detection experiments. Neither was released: both
   missed their pre-set quality gates (see the code comments for the evaluation protocol).
+- `inj/`: Qwen3.8-27B injection judge (teacher evaluation and labelling) and the v2.2 distillation data builder.
 - `release/datasets/`: cards of the published datasets (multilingual GoEmotions, multilingual Civil Comments, reranker
   distillation data).
 - `release/`: model card generators, release packaging, and helpers shipped with the models (`redact.py`,
