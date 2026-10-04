@@ -15,8 +15,23 @@ PROMPT = ("Text:\n<<<\n{text}\n>>>\n\nWhat is the overall sentiment the author e
 # v2: mixed / balanced texts are neutral (the tweets and Amazon 3-star conventions); env PROMPT_V=2
 PROMPT2 = PROMPT.replace("or no clear sentiment either way", "no clear sentiment, or a mix of positive and negative points "
                          "that roughly balance out (e.g. \"good quality but too expensive\", an average experience)")
+# fin: financial sentiment from an investor's point of view (FinBERT / Financial PhraseBank convention); env PROMPT_V=fin
+PROMPT_FIN = ("Text:\n<<<\n{text}\n>>>\n\nFrom an investor's point of view, is this good news, bad news or neither for the company, "
+              "asset or market it is about?\n"
+              "- positive: e.g. higher sales, profits or prices, growth, new orders or contracts, upgrades, an optimistic (bullish) view\n"
+              "- negative: e.g. losses, lower sales or prices, layoffs, lawsuits, downgrades, a pessimistic (bearish) view\n"
+              "- neutral: factual information without a clear positive or negative implication, or mixed news\n"
+              "Answer with one word: positive, negative or neutral.")
 if os.environ.get("PROMPT_V") == "2":
     PROMPT = PROMPT2
+elif os.environ.get("PROMPT_V") == "fin":
+    PROMPT = PROMPT_FIN
+elif os.environ.get("PROMPT_V") == "fin2":   # fin + a stricter bar for positive/negative (plain business facts are neutral)
+    PROMPT = PROMPT_FIN.replace("Answer with one word", "Most factual business statements are neutral: descriptions of a company, "
+                                "its products, plans, contracts or appointments, and figures without a comparison to an earlier "
+                                "period or to expectations. Choose positive or negative only if the text indicates a clear "
+                                "improvement or deterioration (higher or lower than before or than expected, gains or losses, "
+                                "upgrades or downgrades, a clearly favourable or harmful event).\nAnswer with one word")
 
 
 def probs(llm, texts):

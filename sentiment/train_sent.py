@@ -23,7 +23,8 @@ args = ap.parse_args()
 random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
 os.makedirs(args.out, exist_ok=True)
 
-LABELS = ["negative", "neutral", "positive"]
+LABELS = os.environ.get("LABELS", "negative,neutral,positive").split(",")   # scam: LABELS=legitimate,spam,fraud
+PCOLS = os.environ.get("PCOLS", "p_neg,p_neu,p_pos").split(",")         # scam: PCOLS=p_legit,p_spam,p_fraud
 tok = AutoTokenizer.from_pretrained(args.base)
 model = AutoModelForSequenceClassification.from_pretrained(args.base, num_labels=3, id2label=dict(enumerate(LABELS)),
                                                            label2id={l: i for i, l in enumerate(LABELS)}).cuda()
@@ -33,7 +34,7 @@ print("train", len(tr), "val", len(va), flush=True)
 
 def encode(df):
     enc = tok(df.text.tolist(), truncation=True, max_length=args.max_len)["input_ids"]
-    return list(zip(enc, df[["p_neg", "p_neu", "p_pos"]].values.astype(np.float32)))
+    return list(zip(enc, df[PCOLS].values.astype(np.float32)))
 
 
 tr_enc, va_enc = encode(tr), encode(va)
