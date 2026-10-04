@@ -56,7 +56,7 @@ browser demos for [injection](https://huggingface.co/spaces/Horizon-Labs/prompt-
 - `ner/`, `gib/`: multilingual NER (Qwen span labels) and gibberish detection experiments. Neither was released: both
   missed their pre-set quality gates (see the code comments for the evaluation protocol).
 - `scam/`: multilingual phishing / scam / spam detector (evals, Qwen teacher, synthetic message generator, training, release).
-- `fin/`: multilingual financial sentiment experiments (not released: FiQA gate missed; see COMPANY notes in the code headers).
+- `fin/`: multilingual financial sentiment experiments (not released: the models missed their pre-set FiQA quality bar).
 - `punct/`: punctuation restoration (88 languages): normalisation, training windows from FineWeb-2, FLORES/TED/Europarl evals,
   training and evaluation (incl. 1-800-BAD-CODE models via punctuators); `release/punct/` card, helper `punctuate.py`, publish.
 - `inj/`: Qwen3.8-27B injection judge (teacher evaluation and labelling) and the v2.2 distillation data builder.
