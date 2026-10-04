@@ -29,8 +29,21 @@ def cls_of(name, n):
 EV = load_evals(args.evals)
 res = json.load(open(args.out)) if os.path.exists(args.out) else {}
 for spec in args.models.split(","):
-    tok = AutoTokenizer.from_pretrained(spec)
-    m = AutoModelForSequenceClassification.from_pretrained(spec, torch_dtype=torch.bfloat16).cuda().eval()
+    try:
+        tok = AutoTokenizer.from_pretrained(spec)
+    except Exception as e:   # e.g. BERT repos with only vocab.txt under transformers 5
+        try:
+            from huggingface_hub import hf_hub_download
+            from transformers import BertTokenizerFast
+            tok = BertTokenizerFast(vocab_file=hf_hub_download(spec, "vocab.txt"), do_lower_case="uncased" in spec or "tone" in spec)
+            print(spec, "tokenizer fallback: BertTokenizerFast(vocab.txt)", flush=True)
+        except Exception as e2:
+            print(spec, "SKIPPED, tokenizer failed:", repr(e)[:200], repr(e2)[:200], flush=True); continue
+    try:
+        m = AutoModelForSequenceClassification.from_pretrained(spec, torch_dtype=torch.bfloat16).cuda().eval()
+    except ValueError:   # old BERT configs without model_type
+        from transformers import BertForSequenceClassification
+        m = BertForSequenceClassification.from_pretrained(spec, torch_dtype=torch.bfloat16).cuda().eval()
     id2 = m.config.id2label; M = torch.zeros(len(id2), 3)
     for i, l in id2.items():
         M[int(i), cls_of(l, len(id2))] = 1

@@ -11,7 +11,8 @@ OUT, ins = sys.argv[1], sys.argv[2:]
 os.makedirs(OUT, exist_ok=True)
 NEU_MAX_P, NEU_SHARE = float(os.environ.get("NEU_MAX_P", 0.9)), float(os.environ.get("NEU_SHARE", 0.5))
 norm = lambda s: re.sub(r"\W+", " ", s.lower()).strip()
-ev = {norm(t) for p in glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "evals", "*.parquet"))
+EVALS = os.environ.get("EVALS", os.path.join(os.path.dirname(os.path.abspath(__file__)), "evals"))   # fin: EVALS=fin/evals
+ev = {norm(t) for p in glob.glob(os.path.join(EVALS, "*.parquet"))
       for t in pd.read_parquet(p).text}
 df = pd.concat([pd.read_parquet(p) for p in ins], ignore_index=True)
 st = dict(n_in=len(df))
