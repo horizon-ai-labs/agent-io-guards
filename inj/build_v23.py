@@ -6,7 +6,7 @@ import pandas as pd
 v22, out, ins = sys.argv[1], sys.argv[2], sys.argv[3:]
 os.makedirs(out, exist_ok=True)
 norm = lambda s: re.sub(r"\W+", " ", str(s).lower()).strip()
-EV = ["/fast/awuhrmann/agent-outputs/run-20260923-130458/65d4f827-c645-4a38-bf33-8d5ea76adb08/v2/eval", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".gated", "eval")]
+EV = [os.path.join(os.environ.get("JOBS", "."), "65d4f827-c645-4a38-bf33-8d5ea76adb08/v2/eval"), os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".gated", "eval")]
 ev = set()
 for d in EV:
     for p in glob.glob(f"{d}/*.parquet") + glob.glob(f"/outputs/65d4f827-c645-4a38-bf33-8d5ea76adb08/v2/eval/*.parquet"):
