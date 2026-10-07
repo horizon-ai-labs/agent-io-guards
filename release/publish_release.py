@@ -15,7 +15,8 @@ ops.append(CommitOperationAdd("README.md", f"release/{size}/README.md"))
 ops.append(CommitOperationAdd("eval/eval_results.json", ev)); ops.append(CommitOperationAdd("eval/baselines_eval_results.json", bl))
 for p in ["data/build_v0.py", "data/build_v1.py", "data/build_v2.py", "data/langs.py", "gen/gen_v1.py", "gen/gen_v2.py", "train/train.py",
           "train/evaluate.py", "train/normalizer.py", "train/export_onnx.py", "train/quant_sweep.py", "release/build_release_dir.py"] + (["zeroshot/export_onnx_large.py"] if size == "large" else []) \
-         + (["inj/teacher_inj.py", "inj/build_v22.py"] if os.environ.get("V22") == "1" else []):
+         + (["inj/teacher_inj.py", "inj/build_v22.py"] if os.environ.get("V22") == "1" or os.environ.get("V23") == "1" else []) \
+         + (["inj/gen_hijack3.py", "inj/gen_benign_cmd.py", "inj/build_v23.py", "inj/build_v24_v25.py"] if os.environ.get("V23") == "1" else []):
     ops.append(CommitOperationAdd(f"code/{p}", p))
 for o in ops:
     if isinstance(o.path_or_fileobj, bytes):
