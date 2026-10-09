@@ -56,6 +56,11 @@ q = oc.get("model_quantized.onnx", {})
 onnx = (f"`onnx/model_quantized.onnx` (int8 embeddings, {q.get('mb', 0):.0f} MB) predicts the same label as fp32 for "
         f"{100 * q.get('token_agreement', 0):.2f}% of tokens on held-out text.") if q else ""
 ISO = st["iso"]
+rec = st["recipe"][size]
+SPOKEN = (f"- **Spoken-style text** (v1.1): {rec['spoken']:,} windows of edited transcripts of everyday speech (talks, podcasts, interviews,\n"
+          "  meetings, lectures, vlogs, phone calls ...) in 69 languages, written by Qwen3.8-27B (Apache-2.0) for this purpose; transcripts\n"
+          "  that shared a sentence with any test set were removed.\n") if rec.get("spoken") else ""
+CHANGELOG = ("\n## Changelog\n\n" + "".join(f"- **{v}**: {t}\n" for v, t in rec.get("changelog", []))) if rec.get("changelog") else ""
 
 card = f"""---
 license: apache-2.0
@@ -184,19 +189,19 @@ Per mark (this model; mean over languages, FLORES over our 88):
   [FineWeb-2](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2) and [FineWeb](https://huggingface.co/datasets/HuggingFaceFW/fineweb)
   (ODC-BY). The labels come from the text's own punctuation: snippets that end in a full stop, are mostly letters and are not
   lists; 1-4 snippets per window (up to 230 words), 30% cut mid-sentence. {st['lower_pct']}% of the inputs were lowercased.
-- **Normalisation**: `!`, `;`, `…` and script full stops (`。 । ። ۔` ...) count as `.`; `，、،` as `,`; `？؟` (and `;` in Greek) as `?`;
+{SPOKEN}- **Normalisation**: `!`, `;`, `…` and script full stops (`。 । ። ۔` ...) count as `.`; `，、،` as `,`; `？؟` (and `;` in Greek) as `?`;
   a free-standing dash as `-`. A `.` before a lowercase word (abbreviations) counts as no mark.
 - **Model**: mmBERT-{size} token classification, one label per word on its last token, {st['recipe'][size]['epochs']} epoch{'s' if st['recipe'][size]['epochs'] > 1 else ''}, learning rate {st['recipe'][size]['lr']}.
   Checkpoint{' and number of epochs (2 over 1)' if size == 'small' else ''} chosen on held-out web text, not on the test sets.
 - Code: `code/` in this repository.
-
+{CHANGELOG}
 ## Limitations
 
 - Only `. , ? : -` are predicted. Exclamation marks, semicolons, quotes, brackets and Spanish inverted marks are not restored.
   `:` and especially `-` (a free-standing dash) are much less reliable than `.` `,` `?` (see the per-mark table).
 - Accuracy on lowercased text is lower than on cased text, because capital letters reveal sentence starts.
-- Trained on written web text. Disfluent speech (fillers, false starts, repetitions) is harder, and punctuation conventions
-  vary by writer. Thai, Lao, Khmer, Burmese and Tibetan are not supported.
+- {"Trained mostly on written web text, plus synthetic spoken-style transcripts" if rec.get("spoken") else "Trained on written web text"}. Disfluent speech (fillers, false starts, repetitions) is
+  harder, and punctuation conventions vary by writer. Thai, Lao, Khmer, Burmese and Tibetan are not supported.
 - Low-resource languages and languages outside the 88 score lower (see the per-language table).
 """
 open(out, "w").write(card)

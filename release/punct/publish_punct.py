@@ -16,7 +16,7 @@ ops.append(CommitOperationAdd("README.md", f"release/punct/README_{size}.md"))
 ops.append(CommitOperationAdd("eval/this_model.json", f"release/evals/punct_{size}.json"))
 ops.append(CommitOperationAdd("eval/baselines.json", "release/evals/punct_baselines.json"))
 for p in ["punct/common.py", "punct/build_data.py", "punct/build_evals.py", "punct/train_punct.py", "punct/eval_punct.py", "punct/eval_pcs.py",
-          "emb/build_texts.py", "lid/fw_files.json", "pii/export_onnx_tok.py"]:
+          "emb/build_texts.py", "lid/fw_files.json", "pii/export_onnx_tok.py", "punct/gen_spoken.py", "punct/build_spoken.py"]:
     ops.append(CommitOperationAdd(f"code/{p}", p))
 pats = [x for x in [os.environ.get("HF_TOKEN", ""), os.environ.get("GH_TOKEN", "")] if x]
 for o in ops:
