@@ -20,13 +20,15 @@ ap.add_argument("--warmup", type=float, default=0.06)
 ap.add_argument("--wd", type=float, default=0.01)
 ap.add_argument("--seed", type=int, default=0)
 ap.add_argument("--eval_every", type=int, default=1000)
+ap.add_argument("--labels", default="toxicity,severe_toxicity,obscene,threat,insult,identity_attack,sexual_explicit",
+                help="label columns (hate/: hate,target_race,...)")
 args = ap.parse_args()
 random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
 os.makedirs(args.out, exist_ok=True)
 
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-LABELS = ["toxicity", "severe_toxicity", "obscene", "threat", "insult", "identity_attack", "sexual_explicit"]
+LABELS = args.labels.split(",")
 tok = AutoTokenizer.from_pretrained(args.base)
 model = AutoModelForSequenceClassification.from_pretrained(args.base, num_labels=len(LABELS), id2label=dict(enumerate(LABELS)),
                                                            label2id={l: i for i, l in enumerate(LABELS)},

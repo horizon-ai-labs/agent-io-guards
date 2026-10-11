@@ -116,6 +116,8 @@ so it is a multilingual drop-in for Detoxify-style moderation. Apache-2.0. ONNX 
   English (see F1 @ 0.5 below), so a lower threshold may suit multilingual content. Check it on your own data.
 - For harmful requests to an LLM (weapons, self-harm, etc.) rather than rude comments, see our
   [content-safety-guard](https://huggingface.co/Horizon-Labs/content-safety-guard-small).
+- For hate speech specifically (attacks on people because of race, religion, origin, gender, sexuality, age or disability,
+  with the targeted group), see [multilingual-hate-speech-base](https://huggingface.co/Horizon-Labs/multilingual-hate-speech-base).
 - {onnx}
 
 ## Usage
