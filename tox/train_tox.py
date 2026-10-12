@@ -22,6 +22,9 @@ ap.add_argument("--seed", type=int, default=0)
 ap.add_argument("--eval_every", type=int, default=1000)
 ap.add_argument("--labels", default="toxicity,severe_toxicity,obscene,threat,insult,identity_attack,sexual_explicit",
                 help="label columns (hate/: hate,target_race,...)")
+ap.add_argument("--regression", action="store_true", help="one raw regression output trained with MSE (edu/: FineWeb-Edu style 0-5 score); "
+                "val metric = Spearman correlation")
+ap.add_argument("--context", action="store_true", help="encode (context, text) pairs when the data has a non-empty context column (irony/)")
 args = ap.parse_args()
 random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
 os.makedirs(args.out, exist_ok=True)
@@ -32,13 +35,22 @@ LABELS = args.labels.split(",")
 tok = AutoTokenizer.from_pretrained(args.base)
 model = AutoModelForSequenceClassification.from_pretrained(args.base, num_labels=len(LABELS), id2label=dict(enumerate(LABELS)),
                                                            label2id={l: i for i, l in enumerate(LABELS)},
-                                                           problem_type="multi_label_classification").cuda()
+                                                           problem_type="regression" if args.regression else "multi_label_classification").cuda()
+model.config.uses_context = bool(args.context)
 tr = pd.read_parquet(f"{args.data}/train.parquet"); va = pd.read_parquet(f"{args.data}/val.parquet")
 print("train", len(tr), "val", len(va), flush=True)
 
 
 def encode(df):
-    enc = tok(df.text.tolist(), truncation=True, max_length=args.max_len)["input_ids"]
+    if args.context and "context" in df:  # (context, text) pairs where a context is given, else the text alone
+        ctx = df.context.fillna("").tolist(); txt = df.text.tolist(); enc = [None] * len(df)
+        single = [i for i, c in enumerate(ctx) if not c]; pair = [i for i, c in enumerate(ctx) if c]
+        for i, e in zip(single, tok([txt[i] for i in single], truncation=True, max_length=args.max_len)["input_ids"] if single else []):
+            enc[i] = e
+        for i, e in zip(pair, tok([ctx[i] for i in pair], [txt[i] for i in pair], truncation="longest_first", max_length=args.max_len)["input_ids"] if pair else []):
+            enc[i] = e
+    else:
+        enc = tok(df.text.tolist(), truncation=True, max_length=args.max_len)["input_ids"]
     return list(zip(enc, df[LABELS].values.astype(np.float32)))
 
 
@@ -79,9 +91,14 @@ def evaluate():
     for b in batches(va_enc, False):
         ids, att, _ = collate(va_enc, b)
         with torch.autocast("cuda", dtype=torch.bfloat16):
-            P[b] = torch.sigmoid(model(input_ids=ids, attention_mask=att).logits.float()).cpu().numpy()
+            lo = model(input_ids=ids, attention_mask=att).logits.float()
+            P[b] = (lo if args.regression else torch.sigmoid(lo)).cpu().numpy()
     model.train()
     T = np.stack([x[1] for x in va_enc]); aucs = []
+    if args.regression:  # Spearman (Pearson of ranks) per output; key kept as macro_f1 for the selection code below
+        rk = lambda a: pd.Series(a).rank().values
+        sp = [float(np.corrcoef(rk(P[:, c]), rk(T[:, c]))[0, 1]) for c in range(len(LABELS))]
+        return dict(macro_f1=float(np.mean(sp)), mse=float(((P - T) ** 2).mean()))
     for c in range(len(LABELS)):
         y = T[:, c] >= 0.5
         if y.sum() >= 20:
@@ -104,7 +121,8 @@ while step < total:
         ids, att, t = collate(tr_enc, b)
         with torch.autocast("cuda", dtype=torch.bfloat16):
             logits = model(input_ids=ids, attention_mask=att).logits.float()
-        loss = torch.nn.functional.binary_cross_entropy_with_logits(logits, t, pos_weight=torch.full((len(LABELS),), args.pos_weight, device=t.device))
+        loss = (torch.nn.functional.mse_loss(logits, t) if args.regression else
+                torch.nn.functional.binary_cross_entropy_with_logits(logits, t, pos_weight=torch.full((len(LABELS),), args.pos_weight, device=t.device)))
         loss.backward(); torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         opt.step(); sch.step(); opt.zero_grad(set_to_none=True); step += 1
         if step % 100 == 0:
@@ -117,4 +135,4 @@ while step < total:
         if step >= total:
             break
 json.dump(dict(args=vars(args), log=log), open(f"{args.out}/train_log.json", "w"), indent=1)
-print("done; best val mean AUC", best)
+print("done; best val metric (mean AUC, or Spearman with --regression)", best)

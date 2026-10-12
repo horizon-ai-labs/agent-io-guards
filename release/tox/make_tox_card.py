@@ -16,7 +16,9 @@ BL = [("unitary/unbiased-toxic-roberta", "125M", "Apache-2.0", "7 Detoxify label
       ("martin-ha/toxic-comment-model", "67M", "none given", "binary, English"),
       ("unitary/multilingual-toxic-xlm-roberta", "278M", "Apache-2.0", "1 label, multilingual"),
       ("citizenlab/distilbert-base-multilingual-cased-toxicity", "135M", "none given", "binary, multilingual"),
-      ("textdetox/xlmr-large-toxicity-classifier", "560M", "OpenRAIL++", "binary, multilingual; trained on TextDetox data")]
+      ("textdetox/xlmr-large-toxicity-classifier", "560M", "OpenRAIL++", "binary, multilingual; trained on TextDetox data"),
+      ("textdetox/xlmr-large-toxicity-classifier-v2", "560M", "OpenRAIL++", "binary, multilingual; trained on TextDetox data"),
+      ("gravitee-io/distilbert-multilingual-toxicity-classifier", "135M", "OpenRAIL++", "binary, multilingual; trained on TextDetox data (ONNX copy: onnx-community/distilbert-multilingual-toxicity-classifier)")]
 link = lambda m: f"[{m}](https://huggingface.co/{m})"
 row = lambda name, lic, r, note: f"| {name} | {lic} | {f3(r['_civil_mean_auc'])} | {f3(r['_civil_toxicity_auc'])} | {f3(r['_tdx_mean_auc'])} | {f3(r['_tdx_mean_f1'])} | {note} |"
 rows = [row(f"**this model** ({PARAMS[size]})", "Apache-2.0", me, "7 Detoxify labels, multilingual")] + \

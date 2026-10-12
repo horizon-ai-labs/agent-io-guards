@@ -16,6 +16,7 @@ for p in sorted(glob.glob(f"{ev}/*.parquet")):
     texts += df.sample(min(len(df), int(os.environ.get("QN", 30))), random_state=0).text.str[:3000].tolist()
 texts = texts[:int(os.environ.get("QMAX", 400))]
 MC = bool(os.environ.get("MULTICLASS"))   # language identifier: compare the argmax label instead of a 0.5 threshold
+REG = os.environ.get("REGRESSION")   # REGRESSION=2.5 (edu scorer): raw output; agreement = same side of that cut (int_score >= 3)
 so = ort.SessionOptions(); so.intra_op_num_threads = 8
 
 
@@ -29,6 +30,8 @@ def probs(path):
         # MULTILABEL=1 (content-safety guard): score = sigmoid of logit 0 ("unsafe"); else 2-class softmax P(label 1)
         if MC:
             out.append(float(np.argmax(lo))); continue
+        if REG:
+            out.append(float(lo[0])); continue
         # MULTILABEL=all (emotion model): all sigmoid outputs; a text agrees only if every label agrees at 0.5
         if os.environ.get("MULTILABEL") == "all":
             out.append(1 / (1 + np.exp(-lo))); continue
@@ -36,7 +39,8 @@ def probs(path):
     return np.array(out), (time.time() - t) / len(texts)
 
 
-agree_bin = lambda p, ref: ((p > 0.5) == (ref > 0.5)).reshape(len(p), -1).all(1).mean()
+cut = float(REG) if REG else 0.5
+agree_bin = lambda p, ref: ((p > cut) == (ref > cut)).reshape(len(p), -1).all(1).mean()
 ref, t_ref = probs(f"{d}/onnx/model.onnx")
 m = onnx.load(f"{d}/onnx/model.onnx", load_external_data=False)
 names = [n.name for n in m.graph.node]
