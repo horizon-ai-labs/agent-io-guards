@@ -6,8 +6,9 @@ import argparse, json, os
 import numpy as np, pandas as pd, torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 HERE = os.path.dirname(os.path.abspath(__file__))
-ap = argparse.ArgumentParser(); ap.add_argument("--models", required=True); ap.add_argument("--out", required=True); args = ap.parse_args()
-EV = {n: pd.read_parquet(os.path.join(HERE, "evals", f"{n}.parquet")).reset_index(drop=True) for n in ("sentences", "queries")}
+ap = argparse.ArgumentParser(); ap.add_argument("--models", required=True); ap.add_argument("--out", required=True)
+ap.add_argument("--evals", default=os.path.join(HERE, "evals")); ap.add_argument("--sets", default="sentences,queries"); args = ap.parse_args()
+EV = {n: pd.read_parquet(os.path.join(args.evals, f"{n}.parquet")).reset_index(drop=True) for n in args.sets.split(",")}
 
 
 def f1(y, p):
