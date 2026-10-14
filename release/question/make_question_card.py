@@ -1,0 +1,130 @@
+"""Model card for Horizon-Labs/multilingual-question-vs-statement-{small,base}.
+python release/question/make_question_card.py SIZE RELEASE_DIR OURS_EVAL.json OTHER_SIZE_EVAL.json|- BASELINES.json SEEDS_TEXT STATS.json OUT"""
+import json, os, sys
+size, rd, ours_f, other_f, bl_f, seeds, st_f, out = sys.argv[1:9]
+other = "base" if size == "small" else "small"
+REPO, OTHER = f"Horizon-Labs/multilingual-question-vs-statement-{size}", f"Horizon-Labs/multilingual-question-vs-statement-{other}"
+PARAMS = {"small": "141M", "base": "308M"}
+first = lambda f: list(json.load(open(f)).values())[0]
+me, bl, st = first(ours_f), json.load(open(bl_f)), json.load(open(st_f))
+ot = first(other_f) if other_f != "-" else None
+B = "shahrukhx01/question-vs-statement-classifier"
+qs = json.load(open(f"{rd}/onnx_sweep.json")) if os.path.exists(f"{rd}/onnx_sweep.json") else {}
+f3 = lambda x: "—" if x is None else f"{x:.3f}"
+link = lambda m: f"[{m}](https://huggingface.co/{m})"
+row = lambda name, r, note: (f"| {name} | {f3(r['sentences']['lang_mean_bal_acc'])} | {f3(r['sentences']['macro_f1'])} | {f3(r['sentences']['acc_en'])} | "
+                              f"{f3(r['queries']['acc'])} | {f3(r['queries']['acc_en'])} | {note} |")
+rows = [row(f"**this model** ({PARAMS[size]})", me, "66 languages")] + ([row(f"{link(OTHER)} ({PARAMS[other]})", ot, "")] if ot else []) + \
+       [row(f"{link(B)} (11M)", bl[B], "English (bert-mini); Haystack's default")]
+main = "\n".join(["| model | web sentences: mean balanced accuracy over languages | web sentences: macro-F1 | web sentences, English: accuracy | search queries, 47 languages: accuracy | search queries, English: accuracy | note |",
+                  "|---|---|---|---|---|---|---|"] + rows)
+bal = me["sentences"]["lang_bal_acc"]; srt = sorted(bal.items(), key=lambda kv: kv[1])
+low = ", ".join(f"{l} {v:.2f}" for l, v in srt[:6])
+gq = qs.get("gather_only", {})
+onnx = (f"`onnx/model_quantized.onnx` (int8 embeddings, {gq.get('mb', 0):.0f} MB) gives the same label as fp32 for {100 * gq.get('agree', 0):.1f}% of "
+        f"{qs.get('n', 0)} test texts.") if gq else ""
+card = f"""---
+license: apache-2.0
+language:
+- multilingual
+- en
+- de
+- fr
+- es
+- it
+- pt
+- nl
+- pl
+- ru
+- uk
+- tr
+- ar
+- fa
+- he
+- hi
+- bn
+- zh
+- ja
+- ko
+- vi
+- id
+- th
+library_name: transformers
+pipeline_tag: text-classification
+base_model: jhu-clsp/mmBERT-{size}
+datasets:
+- HuggingFaceFW/fineweb-2
+tags:
+- question-detection
+- query-classification
+- haystack
+- rag
+- search
+- multilingual
+- modernbert
+- mmbert
+- onnx
+- transformers.js
+widget:
+- text: "how do I reset my password"
+  example_title: "Question (no ?)"
+- text: "best pizza in new york"
+  example_title: "Keyword query"
+- text: "wie spät ist es in tokio"
+  example_title: "German question"
+- text: "le train part à huit heures"
+  example_title: "French statement"
+---
+
+# Multilingual Question vs Statement Classifier ({size}, {PARAMS[size]})
+
+Tells whether a text is a **question** or a **statement / keyword query**, in English and 65 other languages, **without needing a question
+mark** (ASR transcripts, typed search queries). A multilingual drop-in replacement for
+[{B}]({'https://huggingface.co/' + B}), Haystack's default query router: same labels, **`LABEL_1` = question**, `LABEL_0` = statement or keywords.
+Built on [mmBERT-{size}](https://huggingface.co/jhu-clsp/mmBERT-{size}), Apache-2.0, ONNX for CPU and the browser (transformers.js) included.
+{(("A larger, more accurate version is available as " if size == "small" else "A smaller, faster version is available as ") + link(OTHER) + ".") if ot else ""} {onnx}
+
+## Usage
+
+```python
+from transformers import pipeline
+
+clf = pipeline("text-classification", model="{REPO}")
+print(clf(["how do I reset my password", "best pizza in new york", "¿dónde está la estación", "ich habe den zug verpasst"]))
+# LABEL_1 = question, LABEL_0 = statement / keywords
+```
+
+In Haystack, use it wherever `{B}` is configured (for example as the model of a `TransformersTextRouter`); the
+label names are the same, so existing routes keep working.
+
+## Evaluation
+
+Labels in both test sets are objective, not judged by a model. No test text was used for training.
+
+- **Web sentences**: {me['sentences']['n']:,} held-out sentences from [FineWeb-2](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2) / FineWeb (66 languages,
+  up to 100 questions and 100 statements each). A sentence is a question if it ended in a question mark (`?`, `？`, `؟`, Greek `;`, Armenian `՞`).
+  The mark and other final punctuation were removed and half the sentences lowercased. Balanced accuracy is averaged over the {len(me['sentences']['lang_bal_acc'])} languages with
+  at least 20 questions (Thai, Burmese and Khmer rarely use question marks).
+- **Search queries**: {me['queries']['n']:,} held-out search queries in 47 languages, natural-language questions (question mark removed) vs keyword queries,
+  generated by Qwen3.8-27B from web passages.
+
+{main}
+
+- The table shows the released checkpoint. Means over {seeds}.
+- Lowest languages (balanced accuracy): {low}. Rhetorical questions and questions with no interrogative word or word order (intonation
+  questions such as "you're coming tomorrow") cannot be recognised from text alone.
+
+## Training
+
+- {st['by_source']['sentence']:,} real sentences from FineWeb-2 and FineWeb (ODC-BY) in {st['n_lang']} languages, labelled by their question mark,
+  which was then removed; {st['by_source']['query']:,} generated search queries (question vs keywords). No test sentences or queries.
+- mmBERT-{size}, two classes, max length 128 tokens. Code: `code/` in this repository.
+
+## Limitations
+
+- Labels follow punctuation: rhetorical questions count as questions and questions written without a question mark in the source count as
+  statements, so some "errors" are label noise.
+- Plain imperatives ("open the window") are statements here, as in the original Haystack model, but polite requests for information
+  ("can you tell me ...", Japanese "...教えてください") often come out as questions. Check this on your own traffic if the difference matters.
+"""
+open(out, "w").write(card); print("written", out, len(card))
