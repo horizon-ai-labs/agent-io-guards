@@ -8,6 +8,8 @@ REPO, OTHER = f"Horizon-Labs/multilingual-reranker-{size}", f"Horizon-Labs/multi
 PARAMS = {"small": "141M", "base": "308M"}
 first = lambda f: list(json.load(open(f)).values())[0]
 me, bl = first(ours_f), json.load(open(bl_f))
+V11 = os.environ.get("V11") == "1"   # v1.1: + MIRACL train (real queries); changelog numbers from the env
+CHANGE = os.environ.get("CHANGELOG", "")
 ot = first(other_f) if other_f != "-" else None   # "-": the other size is not released (yet)
 qs = json.load(open(f"{rd}/onnx_sweep.json")) if os.path.exists(f"{rd}/onnx_sweep.json") else {}
 f3 = lambda x: "—" if x is None else f"{x:.3f}"
@@ -91,7 +93,7 @@ datasets:
 - HuggingFaceFW/fineweb-2
 - HuggingFaceFW/fineweb
 - Horizon-Labs/multilingual-rerank-distill
-tags:
+{'- miracl/miracl' + chr(10) if V11 else ''}tags:
 - reranker
 - cross-encoder
 - text-ranking
@@ -156,16 +158,18 @@ const {{ logits }} = await model(enc);
 
 ## Evaluation
 
-nDCG@10 for reranking the candidate lists of public reranking benchmarks (the MTEB versions). The benchmarks were used only
-for evaluation, never for training or model selection. Every model sees the same queries and candidates, through the same
+nDCG@10 for reranking the candidate lists of public reranking benchmarks (the MTEB versions). {"Since v1.1 the training data includes MIRACL's training split (real queries; different queries from the MIRACL dev queries tested here), so the MIRACL column is in-domain for this model, as it is for bge-reranker-v2-m3. The other benchmarks were used only for evaluation." if V11 else "The benchmarks were used only for evaluation, never for training or model selection."} Every model sees the same queries and candidates, through the same
 script (`code/`). MIRACL: 60 queries per language with 100 candidates each. Wikipedia (WikipediaRerankingMultilingual):
 60 queries per language with 9 candidates each. "Other" = ESCI (es, jp, us), RuBQ, T2Reranking, mMARCO-ja and AskUbuntu.
 
 {main}
 
 - The table shows the released checkpoint. Means over {seeds}.
+- For reference, ranking the same candidates by [bge-m3](https://huggingface.co/BAAI/bge-m3) dense-embedding similarity alone
+  scores 0.797 / 0.927 / 0.788 (mean 0.837), so on this test a reranker adds most on top of a weaker first-stage
+  retriever (BM25 or a small embedding model). Full comparison: [leaderboard](https://huggingface.co/spaces/Horizon-Labs/multilingual-retrieval-leaderboard).
 - Models ahead of this one: MIRACL: {", ".join(ahead["_miracl"]) or "none"}; Wikipedia: {", ".join(ahead["_wiki"]) or "none"};
-  other: {", ".join(ahead["_other"]) or "none"}. bge-reranker-v2-m3 was trained on MIRACL's training set; we were not.
+  other: {", ".join(ahead["_other"]) or "none"}. {'bge-reranker-v2-m3 and, since v1.1, this model were trained on MIRACL training queries (not the dev queries used here).' if V11 else "bge-reranker-v2-m3 was trained on MIRACL's training set; we were not."}
 
 Per set (nDCG@10):
 
@@ -177,9 +181,9 @@ Per set (nDCG@10):
   and [FineWeb](https://huggingface.co/datasets/HuggingFaceFW/fineweb) (ODC-BY) in 47 languages.
 - **Queries**: Qwen3.8-27B (Apache-2.0) wrote a natural question and a keyword query for each passage, in the passage's
   language, plus English questions for 15% of the non-English passages (cross-lingual search).
-- **Scale**: 334,400 queries with 16 candidates each (5.35M teacher-scored pairs), sampled evenly across languages. The
-  data is published as [Horizon-Labs/multilingual-rerank-distill](https://huggingface.co/datasets/Horizon-Labs/multilingual-rerank-distill).
-- **Schedule**: {"1 epoch, learning rate 5e-5" if size == "small" else "2 epochs, learning rate 3e-5 (2 epochs were chosen over 1 by validation loss, not by the benchmarks)"}, 16 queries x 16 candidates per step, max 384 tokens per pair.
+{'- **Real queries (since v1.1)**: 40,203 Wikipedia search queries in 16 languages from the [MIRACL](https://huggingface.co/datasets/miracl/miracl) training split (Apache-2.0), with their human-judged relevant and non-relevant passages (padded to 16 candidates with random passages of the same language), scored by the same teacher.' + chr(10) if V11 else ''}- **Scale**: 334,400 {'synthetic ' if V11 else ''}queries with 16 candidates each (5.35M teacher-scored pairs), sampled evenly across languages{' (plus the 40,203 MIRACL queries)' if V11 else ''}. The
+  synthetic data is published as [Horizon-Labs/multilingual-rerank-distill](https://huggingface.co/datasets/Horizon-Labs/multilingual-rerank-distill).
+- **Schedule**: {"1 epoch, learning rate 5e-5" if size == "small" else "2 epochs, learning rate 3e-5 (2 epochs were chosen over 1 by validation loss, not by the benchmarks)"}{os.environ.get("SCHED_NOTE", "")}, 16 queries x 16 candidates per step, max 384 tokens per pair.
 - **Candidates**: for each query, the 15 most similar passages in the same language by [bge-m3](https://huggingface.co/BAAI/bge-m3)
   dense retrieval (hard negatives) plus the source passage.
 - **Labels**: [Qwen3-Reranker-4B](https://huggingface.co/Qwen/Qwen3-Reranker-4B) (Apache-2.0) scored every (query,
@@ -188,11 +192,11 @@ Per set (nDCG@10):
   passages that dense retrieval finds are not wrongly treated as negatives.
 - Code: `code/` in this repository.
 
-## Limitations
+{("## Changelog" + chr(10) + chr(10) + CHANGE + chr(10) + chr(10)) if CHANGE else ""}## Limitations
 
 - The model inherits the teacher's judgement, including its mistakes. It is weaker than the teacher, especially on
   long or technical passages.
-- Training queries are LLM-written questions and keyword queries over web text. Very domain-specific search (legal,
+- Training queries are mostly LLM-written questions and keyword queries over web text{' (plus real Wikipedia search queries since v1.1)' if V11 else ''}. Very domain-specific search (legal,
   medical, code) and conversational queries are less covered.
 - Pairs are truncated at the max length. Rerank passage-sized chunks, not whole documents.
 """

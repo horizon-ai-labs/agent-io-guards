@@ -1,0 +1,4 @@
+# changelog texts for the v1.1 cards (2-seed means; nDCG@10 MIRACL / Wikipedia / other / mean)
+CL_small="- **v1.1** (2026-10-16): added 40,203 real search queries from the MIRACL training split (16 languages) to the distillation data. 2-seed means v1.0 -> v1.1: MIRACL .730 -> .772 (in-domain since v1.1), Wikipedia .959 -> .962, other .783 -> .784, mean .824 -> .839. v1.0 stays available under the tag \`v1.0\`."
+CL_base="- **v1.1** (2026-10-16): added 40,203 real search queries from the MIRACL training split (16 languages) to the distillation data. 2-seed means v1.0 -> v1.1: MIRACL .760 -> .798 (in-domain since v1.1), Wikipedia .964 -> .967, other .796 -> .797, mean .840 -> .854. v1.0 stays available under the tag \`v1.0\`."
+SCHED_base=" (v1.1: the run stopped at step 44,000 of 46,348, about 1.9 epochs, at the job time limit; that checkpoint was also the best by validation loss)"
