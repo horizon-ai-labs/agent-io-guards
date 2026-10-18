@@ -70,6 +70,36 @@ def bench():
         if cur: spans.append(tuple(cur))
         rows.append((text, spans, []))
     B["ru_pii_benchmark"] = rows
+    # third-party multilingual benchmarks released in Sep/Oct 2026 (after our models were trained); must = direct identifiers,
+    # may = organisations / dates / job / medical fields (not every redactor treats them as personal data)
+    import pandas as pd
+    from huggingface_hub import hf_hub_download as hd
+    if not args.sets or "ar_pii_eval" in args.sets:
+        d = pd.read_parquet(hd("Bayanat-Labs/arabic-pii-eval", "data/test.parquet", repo_type="dataset"))   # CC-BY-4.0, Arabic dialects
+        B["ar_pii_eval"] = [(t, [(x["start"], x["end"]) for x in sp], []) for t, sp in zip(d.text, d.spans)]
+    if not args.sets or "fr_pii_bench" in args.sets:
+        d = pd.read_json(hd("JaqueBill/fr-pii-bench", "fr_pii_bench_v0.jsonl", repo_type="dataset"), lines=True)   # CC-BY-4.0, French documents
+        B["fr_pii_bench"] = [(t, [(x["start"], x["end"]) for x in es if x["label"] != "COMPANY"], [(x["start"], x["end"]) for x in es if x["label"] == "COMPANY"])
+                             for t, es in zip(d.text, d.entities)]
+    if not args.sets or "ko_kdpii" in args.sets:
+        d = pd.read_json(hd("1T/veil-pii-ko-stress", "leakage/kdpii_test_dedup.jsonl", repo_type="dataset"), lines=True)   # CC-BY-4.0, Korean dialogue
+        d = d.sample(frac=1.0, random_state=0)
+        MAY = {"ORGANIZATION", "DATE"}
+        B["ko_kdpii"] = [(t, [(x["start"], x["end"]) for x in sp if x["label"] not in MAY], [(x["start"], x["end"]) for x in sp if x["label"] in MAY]) for t, sp in zip(d.text, d.spans)]
+    if not args.sets or "tr_kvkk" in args.sets:
+        d = pd.read_json(hd("newmindai/nm-kvkk-pii-6K", "bio/test.jsonl", repo_type="dataset"), lines=True)   # Apache-2.0, Turkish documents
+        MAY = {"company_name", "job_title", "medical_condition", "medical_procedure", "blood_type"}
+        rows = []
+        for t, tags, st, en in zip(d.text, d.ner_tags, d.token_starts, d.token_ends):
+            spans, cur = [], None
+            for g, a, b in zip(tags, st, en):
+                if g == "O" or g.startswith("B-") or (cur and cur[2] != g[2:]):
+                    if cur: spans.append(tuple(cur)); cur = None
+                if g != "O":
+                    cur = [a, b, g[2:]] if cur is None else [cur[0], b, cur[2]]
+            if cur: spans.append(tuple(cur))
+            rows.append((t, [(a, b) for a, b, l in spans if l not in MAY], [(a, b) for a, b, l in spans if l in MAY]))
+        B["tr_kvkk"] = rows
     # our own held-out sets (in-distribution for our model)
     if args.ours_data:
         import pandas as pd, glob
