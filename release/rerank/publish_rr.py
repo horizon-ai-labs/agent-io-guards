@@ -15,7 +15,7 @@ ops.append(CommitOperationAdd("README.md", f"release/rerank/README_{size}.md"))
 ops.append(CommitOperationAdd("eval/this_model.json", f"release/evals/rr_{size}.json"))
 ops.append(CommitOperationAdd("eval/baselines.json", "release/evals/rr_baselines.json"))
 for p in ["rerank/build_evals.py", "rerank/build_passages.py", "lid/fw_files.json", "rerank/gen_queries.py", "rerank/mine.py", "rerank/subsample.py",
-          "rerank/teacher_score_vllm.py", "rerank/prep_miracl.py", "rerank/train_rr.py", "rerank/eval_rerank.py", "rerank/quant_check.py", "train/export_onnx.py"]:
+          "rerank/teacher_score_vllm.py", "rerank/prep_miracl.py", "rerank/prep_webfaq.py", "rerank/train_rr.py", "rerank/eval_rerank.py", "rerank/quant_check.py", "train/export_onnx.py"]:
     ops.append(CommitOperationAdd(f"code/{p}", p))
 pats = [x for x in [os.environ.get("HF_TOKEN", ""), os.environ.get("GH_TOKEN", "")] if x]
 for o in ops:
