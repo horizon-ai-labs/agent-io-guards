@@ -413,6 +413,11 @@ flagged content only goes to review. At 0.5 this model flags {fpr_ni:.1%} of Not
   look nothing like it may be missed.
 - English is the largest language. The other 29 synthetic languages are covered by fewer examples, and languages
   outside that list are untested.
+- The language of each synthetic example is the language the generator was asked for. A language-ID check of the
+  held-out synthetic sets found 72-93% of non-English rows really in that language (lowest for short direct messages
+  in Dutch, Hebrew, Hindi and Bengali, which were often written in English). Per-language synthetic scores are
+  therefore approximate; see the `lang_detected` column of the
+  [eval suite](https://huggingface.co/datasets/Horizon-Labs/prompt-injection-eval-suite).
 - It scores text in isolation. It cannot tell whether an instruction is legitimate *in context* (for example, a user
   who really does want their email forwarded).
 - Very short fragments and code without comments carry little signal.
