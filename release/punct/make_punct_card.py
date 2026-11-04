@@ -107,7 +107,8 @@ included. [Try it in the browser](https://huggingface.co/spaces/Horizon-Labs/pun
   [`deepmultilingualpunctuation`](https://github.com/oliverguhr/deepmultilingualpunctuation) package.
 - Chinese and Japanese work too (no word segmentation needed) with the included `punctuate.py`, which writes `，。？：` there,
   and `।` (Hindi, Bengali), `، ؟` (Arabic script), `;` for questions in Greek and `። ፣` in Amharic.
-- It restores punctuation only. It does not change casing or the words.
+- It restores punctuation only. It does not change casing or the words. For lowercase text (such as ASR output) where you
+  also want capital letters, use [multilingual-punctuation-truecase-{size}](https://huggingface.co/Horizon-Labs/multilingual-punctuation-truecase-{size}).
 - {onnx}
 
 ## Usage

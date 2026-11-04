@@ -59,6 +59,8 @@ browser demos for [injection](https://huggingface.co/spaces/Horizon-Labs/prompt-
 - `fin/`: multilingual financial sentiment experiments (not released: the models missed their pre-set FiQA quality bar).
 - `punct/`: punctuation restoration (88 languages): normalisation, training windows from FineWeb-2, FLORES/TED/Europarl evals,
   training and evaluation (incl. 1-800-BAD-CODE models via punctuators); `release/punct/` card, helper `punctuate.py`, publish.
+- `truecase/`: punctuation + truecasing (88 languages): joint `<mark>|<case>` labels on the punctuation training windows, casing
+  metrics, rule and 1-800-BAD-CODE baselines, boundary-decoding check; `release/truecase/` card, helper `truecase.py`, Space, publish.
 - `inj/`: Qwen3.8-27B injection judge (teacher evaluation and labelling) and the v2.2 distillation data builder.
 - `release/datasets/`: cards of the published datasets (multilingual GoEmotions, multilingual Civil Comments, reranker
   distillation data).

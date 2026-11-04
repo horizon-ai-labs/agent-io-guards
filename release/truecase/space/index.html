@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Punctuation + Truecasing</title>
+<style>
+ :root{--bg:#fafafa;--fg:#1a1a1a;--muted:#666;--card:#fff;--border:#ddd;--hl:#3b5bdb;--accent:#3b5bdb}
+ @media (prefers-color-scheme: dark){:root{--bg:#111;--fg:#eee;--muted:#aaa;--card:#1b1b1b;--border:#333;--hl:#91a7ff;--accent:#748ffc}}
+ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);max-width:900px;margin:2rem auto;padding:0 1rem;line-height:1.5}
+ textarea{width:100%;min-height:150px;font:15px/1.5 system-ui,sans-serif;padding:.6rem;box-sizing:border-box;background:var(--card);color:var(--fg);border:1px solid var(--border);border-radius:8px}
+ button{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:.5rem 1rem;font-size:15px;cursor:pointer} button:disabled{opacity:.5}
+ .out{white-space:pre-wrap;font:15px/1.6 system-ui,sans-serif;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.6rem;min-height:3rem}
+ b.p{color:var(--hl)} span.c{color:var(--hl);text-decoration:underline dotted}
+ .ex{display:inline-block;margin:.2rem .3rem .2rem 0;padding:.2rem .6rem;border:1px solid var(--border);border-radius:14px;cursor:pointer;font-size:13px;background:var(--card)}
+ .muted{color:var(--muted)}
+</style></head><body>
+<h1>🔠 Punctuation + Truecasing</h1>
+<p class="muted">Restores <b>. , ? : -</b> and <b>capital letters</b> in lowercase text (ASR transcripts, subtitles, chat) in 88
+languages. It runs <a href="https://huggingface.co/Horizon-Labs/multilingual-punctuation-truecase-small">multilingual-punctuation-truecase-small</a>
+entirely in your browser, so nothing is uploaded. The first run downloads the model, which is then cached. The input is
+lowercased and existing marks are removed first.</p>
+<div><span class="ex" data-i="0">English (ASR)</span><span class="ex" data-i="1">Deutsch</span><span class="ex" data-i="2">Español</span><span class="ex" data-i="3">中文</span><span class="ex" data-i="4">हिन्दी</span><span class="ex" data-i="5">Русский</span><span class="ex" data-i="6">العربية</span></div>
+<textarea id="text"></textarea>
+<p><button id="go" disabled>Loading model…</button> <span class="muted" id="status"></span></p>
+<h3>Result</h3><div class="out" id="out"></div>
+<p class="muted">Recased words are underlined. Accuracy per language and comparisons:
+<a href="https://huggingface.co/Horizon-Labs/multilingual-punctuation-truecase-small">model card</a>. Already-cased text that only
+lacks punctuation: <a href="https://huggingface.co/spaces/Horizon-Labs/punctuation-restoration">Punctuation Restoration</a>.</p>
+<script type="module">
+import { AutoTokenizer, AutoModelForTokenClassification } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3";
+const MODEL = "Horizon-Labs/multilingual-punctuation-truecase-small";
+const BETA = 1.0;  // boundary decoding weight, as in truecase.py (1 = plain argmax)
+const EX = [
+ "okay so welcome everyone to the meeting today we have three topics first the budget for paris second the new office in new york and third the hiring plan maria from the hr team will present it does anyone want to add something",
+ "ich habe heute leider keine zeit aber morgen nachmittag können wir uns gerne in münchen treffen passt dir drei uhr",
+ "hola a todos gracias por venir hoy vamos a hablar del nuevo proyecto con la universidad de barcelona qué opinan ustedes",
+ "大家好今天我们来讨论一下明年的计划首先是预算问题其次是招聘你们有什么意见吗",
+ "नमस्ते आज हम नए प्रोजेक्ट के बारे में बात करेंगे क्या आप सब तैयार हैं",
+ "привет как дела я сегодня весь день работал в москве а вечером пойду в кино с анной хочешь со мной",
+ "مرحبا كيف حالك اليوم أنا بخير شكرا وأنت",
+];
+const CJK = /[぀-ヿ㐀-鿿豈-﫿]/;
+const FW = { ".": "。", ",": "，", "?": "？", ":": "：", "-": "——" };
+const SCRIPT = [[/[\u0900-\u09ff]/, { ".": "।" }], [/[\u0600-\u06ff\u0750-\u077f]/, { ",": "،", "?": "؟" }],
+                [/[\u0370-\u03ff\u1f00-\u1fff]/, { "?": ";" }], [/[\u1200-\u137f]/, { ".": "።", ",": "፣" }]];
+const markFor = (l, c) => { if (CJK.test(c)) return FW[l]; for (const [rx, m] of SCRIPT) if (rx.test(c)) return m[l] || (l === "-" ? " -" : l); return l === "-" ? " -" : l; };
+const $ = id => document.getElementById(id);
+$("text").value = EX[0];
+document.querySelectorAll(".ex").forEach(e => e.onclick = () => { $("text").value = EX[+e.dataset.i]; run(); });
+const esc = s => s.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const lower = t => Array.from(t).map(c => c.toLowerCase().length === c.length ? c.toLowerCase() : c).join("");
+const strip = t => t.replace(/[.,;:!?。，、；：！？؟،¿¡…।॥۔።፣፧]/g, (m, i) => (".,:".includes(m) && /\d/.test(t[i - 1] || "") && /\d/.test(t[i + 1] || "")) ? m : "")
+                    .replace(/\s+/g, " ").trim();
+let tok, model;
+function applyCase(w, c) {
+  if (c === "UPPER") { const u = w.toUpperCase(); return u.length === w.length ? u : w; }
+  if (c === "Cap") { for (let i = 0; i < w.length; i++) { const ch = w[i]; if (ch.toLowerCase() !== ch.toUpperCase()) { const u = ch.toUpperCase(); return u.length === 1 ? w.slice(0, i) + u + w.slice(i + 1) : w; } } }
+  return w;
+}
+function tokenEnds(text, ids) {
+  // character end offset per token (transformers.js has no offset_mapping): decode incrementally
+  const ends = []; let pos = 0;
+  for (const id of ids) {
+    const piece = tok.decode([id], { skip_special_tokens: true }).replace(/^ /, "");
+    if (!piece) { ends.push(-1); continue; }
+    const i = text.indexOf(piece, pos);
+    if (i < 0) { ends.push(-1); continue; }
+    pos = i + piece.length; ends.push(pos);
+  }
+  return ends;
+}
+async function probsFor(text) {
+  const enc = await tok(text, { truncation: true, max_length: 512 });
+  const ids = Array.from(enc.input_ids.data, Number), ends = tokenEnds(text, ids);
+  const { logits } = await model(enc); const [_, L, C] = logits.dims, d = logits.data, lab = model.config.id2label;
+  const out = new Map();
+  for (let i = 0; i < L; i++) {
+    if (ends[i] < 0) continue;
+    let mx = -Infinity; for (let c = 0; c < C; c++) mx = Math.max(mx, d[i * C + c]);
+    const p = []; let z = 0; for (let c = 0; c < C; c++) { p.push(Math.exp(d[i * C + c] - mx)); z += p[c]; }
+    out.set(ends[i], p.map(x => x / z));
+  }
+  return out;
+}
+async function run() {
+  if (!model) return;
+  $("go").disabled = true; const t0 = performance.now();
+  const text = lower(strip($("text").value)), cjk = CJK.test(text);
+  // chunks of ~150 words (250 characters for CJK text without spaces)
+  const parts = cjk && !text.includes(" ") ? text.match(/[\s\S]{1,250}/g) || [] : (() => { const w = text.split(" "), r = []; for (let i = 0; i < w.length; i += 150) r.push(w.slice(i, i + 150).join(" ")); return r; })();
+  let html = "";
+  for (const [k, part] of parts.entries()) {
+    const m = await probsFor(part); const lab = model.config.id2label;
+    // word ends only (or any CJK character), in order
+    const E = [...m.keys()].sort((a, b) => a - b).filter(e => e === part.length || part[e] === " " || CJK.test(part[e - 1]));
+    const P = E.map(e => m.get(e)), MK = ["0", ".", ",", "?", "-", ":"], CS = ["lower", "Cap", "UPPER"];
+    const pm = [], pc = [];
+    for (const p of P) { let b = 0; for (let c = 1; c < p.length; c++) if (p[c] > p[b]) b = c; const [mk, cs] = lab[b].split("|"); pm.push(MK.indexOf(mk)); pc.push(CS.indexOf(cs)); }
+    if (BETA < 1) for (let i = 0; i + 1 < P.length; i++) {
+      if (pm[i] !== 2 || pc[i + 1] !== 1) continue;
+      const M = k => [0, 1, 2].reduce((s, c) => s + P[i][k * 3 + c], 0), Cc = c => [0, 1, 2, 3, 4, 5].reduce((s, k) => s + P[i + 1][k * 3 + c], 0);
+      const b = M(1) >= M(3) ? 1 : 3, z = M(2) * Cc(1) * BETA, x = M(b) * Cc(1), y = M(2) * Cc(0);
+      if (x >= z && x >= y) pm[i] = b; else if (y > z) pc[i + 1] = 0;
+    }
+    let prev = 0, h = "";
+    E.forEach((e, i) => {
+      const s0 = Math.max(prev, part.lastIndexOf(" ", e - 1) + 1), w = part.slice(s0, e), cw = applyCase(w, CS[pc[i]]), mk = MK[pm[i]];
+      h += esc(part.slice(prev, s0)) + (cw !== w ? `<span class="c">${esc(cw)}</span>` : esc(w)) + (mk === "0" ? "" : `<b class="p">${markFor(mk, part[e - 1])}</b>`);
+      prev = e;
+    });
+    html += (k && !(cjk && !text.includes(" ")) ? " " : "") + h + esc(part.slice(prev));
+  }
+  $("out").innerHTML = html;
+  $("status").textContent = `${(performance.now() - t0).toFixed(0)} ms`;
+  $("go").disabled = false;
+}
+$("go").onclick = run;
+(async () => {
+  try {
+    tok = await AutoTokenizer.from_pretrained(MODEL);
+    model = await AutoModelForTokenClassification.from_pretrained(MODEL, { dtype: "q8",
+      progress_callback: x => { if (x.status === "progress" && x.file.endsWith(".onnx")) $("status").textContent = `Downloading model… ${x.progress.toFixed(0)}%`; } });
+    $("go").disabled = false; $("go").textContent = "Restore"; $("status").textContent = "Model ready (running locally)."; run();
+  } catch (e) { $("status").textContent = "Failed to load model: " + e; }
+})();
+</script></body></html>
