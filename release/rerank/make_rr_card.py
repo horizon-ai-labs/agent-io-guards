@@ -157,6 +157,25 @@ const enc = await tok(new Array(passages.length).fill(query), {{ text_pair: pass
 const {{ logits }} = await model(enc);
 ```
 
+RAG frameworks (checked November 2026 with langchain 1.4, llama-index-core 0.14 and haystack-ai 3.3; all three load the model
+through sentence-transformers' `CrossEncoder`):
+
+```python
+# LangChain: pip install langchain-community langchain-classic sentence-transformers
+from langchain_community.cross_encoders import HuggingFaceCrossEncoder
+from langchain_classic.retrievers.document_compressors import CrossEncoderReranker
+reranker = CrossEncoderReranker(model=HuggingFaceCrossEncoder(model_name="{REPO}"), top_n=3)
+top_docs = reranker.compress_documents(documents, query)   # use with ContextualCompressionRetriever
+
+# LlamaIndex: pip install llama-index-core sentence-transformers
+from llama_index.core.postprocessor import SentenceTransformerRerank
+reranker = SentenceTransformerRerank(model="{REPO}", top_n=3)   # node_postprocessors=[reranker]
+
+# Haystack 3: pip install haystack-ai sentence-transformers-haystack
+from haystack_integrations.components.rankers.sentence_transformers import SentenceTransformersSimilarityRanker
+ranker = SentenceTransformersSimilarityRanker(model="{REPO}", top_k=3)
+```
+
 ## Evaluation
 
 nDCG@10 for reranking the candidate lists of public reranking benchmarks (the MTEB versions). {"Since v1.1 the training data includes MIRACL's training split (real queries; different queries from the MIRACL dev queries tested here), so the MIRACL column is in-domain for this model, as it is for bge-reranker-v2-m3. The other benchmarks were used only for evaluation." if V11 else "The benchmarks were used only for evaluation, never for training or model selection."} Every model sees the same queries and candidates, through the same
