@@ -21,6 +21,7 @@ ap.add_argument("--warmup", type=float, default=0.06)
 ap.add_argument("--wd", type=float, default=0.01)
 ap.add_argument("--seed", type=int, default=0)
 ap.add_argument("--labels", default="SAFE,INJECTION", help="names for label 0,1")
+ap.add_argument("--normalizer", action="store_true", help="prepend the obfuscation normalizer (train/normalizer.py) to the tokenizer")
 ap.add_argument("--drop_sources", default="", help="regex; training/val rows whose source matches are dropped")
 ap.add_argument("--eval_every", type=int, default=500)
 ap.add_argument("--distill", type=float, default=0.0, help="weight of soft-label loss (needs a 'soft' column = teacher P(label 1))")
@@ -29,6 +30,8 @@ random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
 os.makedirs(args.out, exist_ok=True)
 
 tok = AutoTokenizer.from_pretrained(args.base)
+if args.normalizer:
+    import sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); from normalizer import add_normalizer; add_normalizer(tok)
 model = AutoModelForSequenceClassification.from_pretrained(
     args.base, num_labels=2, id2label=dict(enumerate(args.labels.split(","))), label2id={l: i for i, l in enumerate(args.labels.split(","))}
 ).cuda()
