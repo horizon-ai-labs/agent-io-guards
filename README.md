@@ -61,6 +61,7 @@ browser demos for [injection](https://huggingface.co/spaces/Horizon-Labs/prompt-
   training and evaluation (incl. 1-800-BAD-CODE models via punctuators); `release/punct/` card, helper `punctuate.py`, publish.
 - `truecase/`: punctuation + truecasing (88 languages): joint `<mark>|<case>` labels on the punctuation training windows, casing
   metrics, rule and 1-800-BAD-CODE baselines, boundary-decoding check; `release/truecase/` card, helper `truecase.py`, Space, publish.
+- `speech/`: punctuation and truecasing on real speech-recognizer output (FLEURS test, Whisper transcripts, end-to-end scoring).
 - `ncii/`: multilingual NCII image-edit guard (generator with adult-only safeguards, real benign edits via the dataset-viewer API, Gemma
   judge, obfuscation augmentation, evaluation vs hfmlsoc models); `release/ncii/` card, Space, publish.
 - `compress/`: multilingual LLMLingua-2-style prompt compressor (teacher deletions, alignment labels, RAG-style QA eval with an independent
