@@ -1,5 +1,5 @@
 """Evaluate classifiers on scam/evals.   python scam/eval_scam.py OUT.json EVAL_DIR MODEL[@i+j] [...]
-@i+j: the class indices whose probabilities sum to the "unsafe" score (default: every class but 0)."""
+@i+j: the class indices whose probabilities sum to the "unsafe" score (default: every class but 0). DUMP=dir: per-message scores."""
 import json, os, sys
 import numpy as np, torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
@@ -24,5 +24,7 @@ for spec in sys.argv[3:]:
                 lo = m(**{k: v.cuda() for k, v in enc.items() if k in ("input_ids", "attention_mask")}).logits.float()
                 P[b] = torch.softmax(lo, -1)[:, un].sum(-1).cpu().numpy() if n > 1 else torch.sigmoid(lo[:, 0]).cpu().numpy()
         r[sname] = score(df, P)
+        if os.environ.get("DUMP"):   # per-message scores for reading the errors
+            df.assign(p_unsafe=P).to_parquet(f"{os.environ['DUMP']}/{sname}__{name.rstrip('/').split('/')[-2][:8]}.parquet", index=False)
     r.update(summarize(r)); print(name, {k: round(v, 4) for k, v in r.items() if k.startswith("_")}, flush=True)
     res[name] = r; json.dump(res, open(out, "w"), indent=1)
