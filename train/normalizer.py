@@ -6,10 +6,13 @@
 2. NFKC (folds full-width and compatibility forms).
 3. Strip remaining invisible / formatting characters: zero-width, bidi controls, soft hyphen,
    leftover tag/variation selectors, combining overlay and underline marks.
+0. (Runs first; added 2026-11-26, injection v2.6.1 / v2.2.1 / v2.1.1) Remove ANSI terminal escape sequences (CSI, OSC, two-character
+   escapes), which shell tools emit; ESC-anchored, so text without ESC is untouched (release/ansi_normalizer.py).
 Homoglyphs are NOT mapped (Cyrillic/Greek are legitimate scripts); the model handles them.
 """
 from tokenizers import normalizers, Regex
 
+ANSI = "\x1b(?:\\[[0-?]*[ -/]*[@-~]|\\][^\x07\x1b]*(?:\x07|\x1b\\\\)|[@-Z\\\\-_])"
 INVISIBLE = ("[­᠎​-‏‪-‮⁠-⁤⁦-⁩﻿︀-️"
              "\U000e0000-\U000e007f\U000e0100-\U000e01ef̱̅-̸⃐-⃿]")
 
@@ -27,7 +30,7 @@ def add_normalizer(tok):
     """tok: a transformers fast tokenizer; modifies it in place and returns it."""
     bk = tok.backend_tokenizer
     old = bk.normalizer
-    seq = decode_rules() + [normalizers.NFKC(), normalizers.Replace(Regex(INVISIBLE), "")]
+    seq = [normalizers.Replace(Regex(ANSI), "")] + decode_rules() + [normalizers.NFKC(), normalizers.Replace(Regex(INVISIBLE), "")]
     if old is not None:
         seq.append(old)
     bk.normalizer = normalizers.Sequence(seq)
