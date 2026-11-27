@@ -21,6 +21,12 @@ def extra(pdir):   # v2.7 sets (inj/gen_tool2.py TEST family; SamJoshua/terse-to
         f = f"{pdir}/tool2_{k}.parquet"
         if os.path.exists(f):
             o[f"tool2_{k}"] = float((pd.read_parquet(f).score >= .5).mean())
+    for k in ("pos_action", "neg_mention"):   # v2.8 sets (inj/gen_tool3.py TEST family)
+        f = f"{pdir}/tool3_{k}.parquet"
+        if os.path.exists(f):
+            d = pd.read_parquet(f); o[f"tool3_{k}"] = float((d.score >= .5).mean())
+            pretty = d.text.str.contains("\n")
+            o[f"tool3_{k}_pretty"], o[f"tool3_{k}_compact"] = float((d[pretty].score >= .5).mean()), float((d[~pretty].score >= .5).mean())
     f = f"{pdir}/samj_heldout.parquet"
     if os.path.exists(f):
         d = pd.read_parquet(f); fl = d.score >= .5
